@@ -1380,32 +1380,54 @@
             "content(\"Connector Geometry\").content(\"Draw On\").end";
         var strokeReference = "effect(\"Stroke Width\")(\"Slider\")";
 
+        // While the connector is fully drawn, anchor the head to the path's
+        // actual last vertex and last-segment direction (from points()) instead
+        // of arc-length sampling. On long multi-elbow routes the arc-length
+        // window can be longer than the short final approach segment, so it
+        // straddles the last corner and yields a diagonal direction, which
+        // shifts and rotates the head off the line end. Vertex math is exact and
+        // immune to corners or path length. The arc-length window is only used
+        // mid draw-on so the head still rides the leading edge during animation.
         transform.property("ADBE Vector Position").expression =
             "var p = " + pathReference + ";\n" +
             "var progress = Math.max(0, Math.min(1, " + trimReference + " / 100));\n" +
-            "var points = p.points();\n" +
-            "if (points.length < 2) {\n" +
+            "var pts = p.points();\n" +
+            "if (pts.length < 2) {\n" +
             "  [0, 0];\n" +
             "} else {\n" +
-            "  var step = 0.002;\n" +
-            "  var tEnd = Math.min(1, progress + step);\n" +
-            "  var tStart = Math.max(0, tEnd - step);\n" +
-            "  var direction = p.pointOnPath(tEnd) - p.pointOnPath(tStart);\n" +
-            "  p.pointOnPath(progress) + normalize(direction) * " +
-            strokeReference + ";\n" +
+            "  var sw = " + strokeReference + ";\n" +
+            "  if (progress >= 0.999) {\n" +
+            "    var last = pts[pts.length - 1];\n" +
+            "    var prev = pts[pts.length - 2];\n" +
+            "    var dir = last - prev;\n" +
+            "    last + normalize(dir) * sw;\n" +
+            "  } else {\n" +
+            "    var step = 0.002;\n" +
+            "    var tEnd = Math.min(1, progress + step);\n" +
+            "    var tStart = Math.max(0, tEnd - step);\n" +
+            "    var dir = p.pointOnPath(tEnd) - p.pointOnPath(tStart);\n" +
+            "    p.pointOnPath(progress) + normalize(dir) * sw;\n" +
+            "  }\n" +
             "}";
         transform.property("ADBE Vector Rotation").expression =
             "var p = " + pathReference + ";\n" +
             "var progress = Math.max(0, Math.min(1, " + trimReference + " / 100));\n" +
-            "var points = p.points();\n" +
-            "if (points.length < 2) {\n" +
+            "var pts = p.points();\n" +
+            "if (pts.length < 2) {\n" +
             "  0;\n" +
             "} else {\n" +
-            "  var step = 0.002;\n" +
-            "  var tEnd = Math.min(1, progress + step);\n" +
-            "  var tStart = Math.max(0, tEnd - step);\n" +
-            "  var direction = p.pointOnPath(tEnd) - p.pointOnPath(tStart);\n" +
-            "  radiansToDegrees(Math.atan2(direction[1], direction[0]));\n" +
+            "  if (progress >= 0.999) {\n" +
+            "    var last = pts[pts.length - 1];\n" +
+            "    var prev = pts[pts.length - 2];\n" +
+            "    var dir = last - prev;\n" +
+            "    radiansToDegrees(Math.atan2(dir[1], dir[0]));\n" +
+            "  } else {\n" +
+            "    var step = 0.002;\n" +
+            "    var tEnd = Math.min(1, progress + step);\n" +
+            "    var tStart = Math.max(0, tEnd - step);\n" +
+            "    var dir = p.pointOnPath(tEnd) - p.pointOnPath(tStart);\n" +
+            "    radiansToDegrees(Math.atan2(dir[1], dir[0]));\n" +
+            "  }\n" +
             "}";
     }
 
