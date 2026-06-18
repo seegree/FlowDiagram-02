@@ -901,7 +901,12 @@
                 "\nvar d = [side * Math.sqrt(3) / 2, side];";
         }
         if (kind === "hexagon") {
-            return base + "\nvar s = Math.max(w, h) * 1.5;\nvar d = [s, s];";
+            // Regular hexagon: with points left/right and flat top/bottom, the
+            // bounding height must be width * sqrt(3)/2 for all six edges to be
+            // equal length (each edge then = width/2).
+            return base +
+                "\nvar s = Math.max(w, h) * 1.5;" +
+                "\nvar d = [s, s * Math.sqrt(3) / 2];";
         }
         return base + "\n[w, h];";
     }
@@ -927,7 +932,7 @@
             return [side * Math.sqrt(3) / 2, side];
         }
         if (kind === "hexagon") {
-            return [180, 180];
+            return [180, 180 * Math.sqrt(3) / 2];
         }
         return [160, 96];
     }
