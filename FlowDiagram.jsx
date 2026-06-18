@@ -893,7 +893,7 @@
             return base + "\nvar diameter = Math.max(w, h);\n[diameter, diameter];";
         }
         if (kind === "diamond") {
-            return base + "\nvar d = [w * 2, h * 2];";
+            return base + "\nvar s = Math.max(w, h) * 2;\nvar d = [s, s];";
         }
         if (kind === "triangle") {
             return base +
@@ -901,7 +901,7 @@
                 "\nvar d = [side * Math.sqrt(3) / 2, side];";
         }
         if (kind === "hexagon") {
-            return base + "\nvar d = [w * 1.5, h * 1.5];";
+            return base + "\nvar s = Math.max(w, h) * 1.5;\nvar d = [s, s];";
         }
         return base + "\n[w, h];";
     }
@@ -920,14 +920,14 @@
             return [24, 24];
         }
         if (kind === "diamond") {
-            return [180, 140];
+            return [180, 180];
         }
         if (kind === "triangle") {
             var side = 180;
             return [side * Math.sqrt(3) / 2, side];
         }
         if (kind === "hexagon") {
-            return [180, 120];
+            return [180, 180];
         }
         return [160, 96];
     }
