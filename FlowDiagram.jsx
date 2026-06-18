@@ -1631,6 +1631,14 @@
     }
 
     function syncControlsFromSelection() {
+        // Runs on every panel activate/focus event, which can fire at fragile
+        // moments: while a modal dialog is open (New Composition settings, an
+        // alert), or against torn-down controls as the panel is reopened. AE
+        // throws there ("Object is invalid" / "Cannot run a script while a
+        // modal dialog is waiting"). An uncaught throw here aborts the panel
+        // repaint (blanking every custom-drawn button/swatch) and wedges the
+        // engine, so a passive refresh must swallow everything.
+        try {
         if (ui === null) {
             return;
         }
@@ -1682,6 +1690,9 @@
             }
             ui.colorButton.notify("onDraw");
         } finally {
+            isSyncingControls = false;
+        }
+        } catch (syncError) {
             isSyncingControls = false;
         }
     }
