@@ -3260,12 +3260,11 @@
     }
 
     function layerIsAlive(layer) {
-        if (layer === null || layer === undefined) {
-            return false;
-        }
         try {
-            // Accessing any property of a removed layer throws.
-            return layer.index > 0;
+            // Even comparing an invalidated AE object reference (e.g. a layer
+            // removed since it was cached in the persistent engine) throws
+            // "Object is invalid", so the whole check must be inside try/catch.
+            return layer !== null && layer !== undefined && layer.index > 0;
         } catch (error) {
             return false;
         }
@@ -3285,7 +3284,11 @@
         try {
             return String(layer.id);
         } catch (error) {
-            return layer.name + "|" + layer.index;
+            try {
+                return layer.name + "|" + layer.index;
+            } catch (error2) {
+                return "invalid";
+            }
         }
     }
 
