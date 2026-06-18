@@ -1648,6 +1648,10 @@
         }
         var connectors = selectedConnectors(comp);
         if (connectors.length === 0) {
+            // Nothing to read from. Don't leave a control stuck on a blank
+            // "<Mixed>" state from a previous selection -- restore concrete
+            // defaults so the panel never lingers blank and Connect stays usable.
+            restoreBlankDropdownsToDefaults();
             return;
         }
 
@@ -1693,6 +1697,34 @@
             isSyncingControls = false;
         }
         } catch (syncError) {
+            isSyncingControls = false;
+        }
+    }
+
+    function restoreBlankDropdownsToDefaults() {
+        if (ui === null) {
+            return;
+        }
+        isSyncingControls = true;
+        try {
+            if (ui.type.selection === null) {
+                setDropdownValue(ui.type, ROUTE_ITEMS[1]);
+            }
+            if (ui.startSide.selection === null) {
+                setDropdownValue(ui.startSide, SIDE_ITEMS[0]);
+            }
+            if (ui.endSide.selection === null) {
+                setDropdownValue(ui.endSide, SIDE_ITEMS[0]);
+            }
+            if (ui.arrowhead.selection === null) {
+                setDropdownValue(ui.arrowhead, ARROWHEAD_ITEMS[0]);
+            }
+            if (selectedColorIsMixed) {
+                selectedColorIsMixed = false;
+                ui.colorValue.text = rgbToHex(selectedColor);
+                ui.colorButton.notify("onDraw");
+            }
+        } finally {
             isSyncingControls = false;
         }
     }
@@ -1745,26 +1777,23 @@
         ) {
             return null;
         }
-        if (
-            ui.type.selection === null ||
-            ui.startSide.selection === null ||
-            ui.endSide.selection === null ||
-            ui.arrowhead.selection === null ||
-            selectedColorIsMixed
-        ) {
-            alert(
-                "Choose concrete values for all mixed connector settings.",
-                SCRIPT_NAME
-            );
-            return null;
-        }
+        // A blank dropdown is a leftover "<Mixed>" indicator from a prior
+        // selection, not a real choice. Fall back to the same defaults the panel
+        // builds with, so Connect always has usable values instead of blocking
+        // with an alert.
         return {
-            route: ui.type.selection.text,
-            startSide: ui.startSide.selection.text,
-            endSide: ui.endSide.selection.text,
+            route: ui.type.selection ? ui.type.selection.text : ROUTE_ITEMS[1],
+            startSide: ui.startSide.selection
+                ? ui.startSide.selection.text
+                : SIDE_ITEMS[0],
+            endSide: ui.endSide.selection
+                ? ui.endSide.selection.text
+                : SIDE_ITEMS[0],
             startOffset: startOffset,
             endOffset: endOffset,
-            arrowhead: ui.arrowhead.selection.text,
+            arrowhead: ui.arrowhead.selection
+                ? ui.arrowhead.selection.text
+                : ARROWHEAD_ITEMS[0],
             strokeWidth: strokeWidth,
             headSize: headSize,
             duration: duration,
