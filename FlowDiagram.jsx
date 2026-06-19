@@ -392,8 +392,28 @@
         themeButton.onClick = relinkSelectionToTheme;
         bakeButton.onClick = bakeGeneratedLayers;
         importButton.onClick = importSlxModel;
-        refreshButton.onClick = syncControlsFromSelection;
-        panel.onActivate = syncControlsFromSelection;
+        // Windows ScriptUI does not reliably repaint custom-drawn controls after
+        // a modal dialog closes, so the hand-drawn shape icons and color swatches
+        // can stay blank (the Mac repaints them automatically). Force them to
+        // redraw whenever the panel reactivates or is manually refreshed.
+        var customDrawnControls = [
+            roundedButton, rectangleButton, squareButton, circleButton,
+            diamondButton, triangleButton, hexagonButton, dotButton,
+            colorButton, nodeFillRow.button, nodeStrokeRow.button
+        ];
+        function redrawCustomControls() {
+            for (var ci = 0; ci < customDrawnControls.length; ci += 1) {
+                try {
+                    customDrawnControls[ci].notify("onDraw");
+                } catch (redrawError) {}
+            }
+        }
+        function refreshPanel() {
+            redrawCustomControls();
+            syncControlsFromSelection();
+        }
+        refreshButton.onClick = refreshPanel;
+        panel.onActivate = refreshPanel;
         // The capture-phase "focus" listener was removed: it re-ran the refresh
         // far too aggressively -- including at moments AE has a modal open (e.g.
         // New Composition), which AE forbids ("Cannot run a script while a modal
