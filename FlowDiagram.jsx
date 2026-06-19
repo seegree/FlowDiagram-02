@@ -394,7 +394,12 @@
         importButton.onClick = importSlxModel;
         refreshButton.onClick = syncControlsFromSelection;
         panel.onActivate = syncControlsFromSelection;
-        panel.addEventListener("focus", syncControlsFromSelection, true);
+        // The capture-phase "focus" listener was removed: it re-ran the refresh
+        // far too aggressively -- including at moments AE has a modal open (e.g.
+        // New Composition), which AE forbids ("Cannot run a script while a modal
+        // dialog is waiting"), wedging the panel and blanking its custom-drawn
+        // controls. onActivate plus the manual refresh (R) button cover the same
+        // need without firing during those modal moments.
 
         panel.onResizing = panel.onResize = function () {
             this.layout.resize();
