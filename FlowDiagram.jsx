@@ -185,9 +185,10 @@
         colorRow.alignChildren = ["left", "center"];
         var colorLabel = colorRow.add("statictext", undefined, "Color");
         colorLabel.preferredSize.width = 88;
-        var colorButton = colorRow.add("button", undefined, "");
+        var colorButton = colorRow.add("statictext", undefined, "");
         colorButton.preferredSize = [38, 20];
         colorButton.helpTip = "Choose connector color";
+        setSwatchColor(colorButton, selectedColor, selectedColorIsMixed);
         var colorValue = colorRow.add("statictext", undefined, rgbToHex(selectedColor));
         colorValue.characters = 7;
         var refreshButton = colorRow.add("button", undefined, "\u21BB");
@@ -195,27 +196,6 @@
         refreshButton.minimumSize = [22, 20];
         refreshButton.maximumSize = [22, 20];
         refreshButton.helpTip = "Load settings from selected connectors";
-
-        colorButton.onDraw = function () {
-            var graphics = this.graphics;
-            graphics.drawOSControl();
-            if (selectedColorIsMixed) {
-                drawMixedSwatch(graphics, this.size[0], this.size[1]);
-            } else {
-                graphics.rectPath(4, 4, this.size[0] - 8, this.size[1] - 8);
-                graphics.fillPath(
-                    graphics.newBrush(graphics.BrushType.SOLID_COLOR, selectedColor)
-                );
-            }
-            graphics.rectPath(4, 4, this.size[0] - 8, this.size[1] - 8);
-            graphics.strokePath(
-                graphics.newPen(
-                    graphics.PenType.SOLID_COLOR,
-                    [0.25, 0.25, 0.25],
-                    1
-                )
-            );
-        };
 
         var themePanel = panel.add("panel", undefined, "Theme");
         themePanel.orientation = "row";
@@ -309,7 +289,7 @@
             createNode("dot", true);
         };
 
-        nodeFillRow.button.onClick = function () {
+        nodeFillRow.button.addEventListener("mousedown", function () {
             var picked = $.colorPicker();
             if (picked >= 0) {
                 selectedNodeFill = integerToRgb(picked);
@@ -317,8 +297,8 @@
                 saveColorSetting("nodeFill", selectedNodeFill);
                 applyNodeColorChoice({ fill: selectedNodeFill });
             }
-        };
-        nodeStrokeRow.button.onClick = function () {
+        });
+        nodeStrokeRow.button.addEventListener("mousedown", function () {
             var picked = $.colorPicker();
             if (picked >= 0) {
                 selectedNodeStroke = integerToRgb(picked);
@@ -326,19 +306,19 @@
                 saveColorSetting("nodeStroke", selectedNodeStroke);
                 applyNodeColorChoice({ stroke: selectedNodeStroke });
             }
-        };
+        });
 
-        colorButton.onClick = function () {
+        colorButton.addEventListener("mousedown", function () {
             var picked = $.colorPicker();
             if (picked >= 0) {
                 selectedColor = integerToRgb(picked);
                 selectedColorIsMixed = false;
                 colorValue.text = rgbToHex(selectedColor);
-                colorButton.notify("onDraw");
+                setSwatchColor(colorButton, selectedColor, false);
                 saveColorSetting("connectorColor", selectedColor);
                 applyConnectorColorChoice(selectedColor);
             }
-        };
+        });
 
         startOffsetRow.input.onChange = function () {
             updateOffsetControl(
@@ -392,28 +372,8 @@
         themeButton.onClick = relinkSelectionToTheme;
         bakeButton.onClick = bakeGeneratedLayers;
         importButton.onClick = importSlxModel;
-        // Windows ScriptUI does not reliably repaint custom-drawn controls after
-        // a modal dialog closes, so the hand-drawn shape icons and color swatches
-        // can stay blank (the Mac repaints them automatically). Force them to
-        // redraw whenever the panel reactivates or is manually refreshed.
-        var customDrawnControls = [
-            roundedButton, rectangleButton, squareButton, circleButton,
-            diamondButton, triangleButton, hexagonButton, dotButton,
-            colorButton, nodeFillRow.button, nodeStrokeRow.button
-        ];
-        function redrawCustomControls() {
-            for (var ci = 0; ci < customDrawnControls.length; ci += 1) {
-                try {
-                    customDrawnControls[ci].notify("onDraw");
-                } catch (redrawError) {}
-            }
-        }
-        function refreshPanel() {
-            redrawCustomControls();
-            syncControlsFromSelection();
-        }
-        refreshButton.onClick = refreshPanel;
-        panel.onActivate = refreshPanel;
+        refreshButton.onClick = syncControlsFromSelection;
+        panel.onActivate = syncControlsFromSelection;
         // The capture-phase "focus" listener was removed: it re-ran the refresh
         // far too aggressively -- including at moments AE has a modal open (e.g.
         // New Composition), which AE forbids ("Cannot run a script while a modal
@@ -455,161 +415,106 @@
     }
 
     function addColorRow(parent, label, initialColor, helpTip) {
-        var currentColor = initialColor;
         var row = parent.add("group");
         row.orientation = "row";
         row.alignChildren = ["left", "center"];
         var labelControl = row.add("statictext", undefined, label);
         labelControl.preferredSize.width = 88;
-        var button = row.add("button", undefined, "");
-        button.preferredSize = [38, 20];
-        button.helpTip = helpTip;
-        var value = row.add("statictext", undefined, rgbToHex(currentColor));
+        var swatch = row.add("statictext", undefined, "");
+        swatch.preferredSize = [38, 20];
+        swatch.helpTip = helpTip;
+        setSwatchColor(swatch, initialColor, false);
+        var value = row.add("statictext", undefined, rgbToHex(initialColor));
         value.characters = 7;
-
-        button.onDraw = function () {
-            var graphics = this.graphics;
-            graphics.drawOSControl();
-            graphics.rectPath(4, 4, this.size[0] - 8, this.size[1] - 8);
-            graphics.fillPath(
-                graphics.newBrush(graphics.BrushType.SOLID_COLOR, currentColor)
-            );
-            graphics.rectPath(4, 4, this.size[0] - 8, this.size[1] - 8);
-            graphics.strokePath(
-                graphics.newPen(
-                    graphics.PenType.SOLID_COLOR,
-                    [0.25, 0.25, 0.25],
-                    1
-                )
-            );
-        };
 
         return {
             row: row,
-            button: button,
+            button: swatch,
             value: value,
             setColor: function (color) {
-                currentColor = color;
                 value.text = rgbToHex(color);
-                button.notify("onDraw");
+                setSwatchColor(swatch, color, false);
             }
         };
     }
 
+    var NODE_ICON_B64 = {
+        rounded: "iVBORw0KGgoAAAANSUhEUgAAABgAAAAWCAYAAADafVyIAAAAT0lEQVR42mNwqFrLQEvMMGrBoLTAAIjnA/F+EvF8qF68FoAUvAfi/2Ti9+iWoFuwnwLDYXg/Pgv+UwmPWjCSLaB5MqV5RqN5UTFaXA9DCwAxTaiSFXYFaQAAAABJRU5ErkJggg==",
+        rectangle: "iVBORw0KGgoAAAANSUhEUgAAABgAAAAWCAYAAADafVyIAAAAKElEQVR42mNwqFrLQEvMMGrByLPgP5XwqAWjFoxaMJAWjBZ2oxaQjgHZ95fq5uIFoAAAAABJRU5ErkJggg==",
+        square: "iVBORw0KGgoAAAANSUhEUgAAABgAAAAWCAYAAADafVyIAAAANElEQVR42mNwqFrLQEvMMCwtEABiBzKxADEWgBT+JxM7jFowasGoBaMWjFpAr+J6tMpEwQCGIbYaisu+IAAAAABJRU5ErkJggg==",
+        circle: "iVBORw0KGgoAAAANSUhEUgAAABgAAAAWCAYAAADafVyIAAAAfElEQVR42mNwqFrLQEvMMCIsMADi+UB8H4j/Q/F9qJgBJRYIAHE/kqG4cD9ULUkWgDScJ8JwGD6PyxJcFvSTYDiyT4iywIAMw2HYgBgL5lNgwXxiLLhPgQX3ibHgP4V44C2geRDRPJJpnkxpntHoUlTQvLCjS3E9WmWCMQDxU62OXn5/JgAAAABJRU5ErkJggg==",
+        diamond: "iVBORw0KGgoAAAANSUhEUgAAABgAAAAWCAYAAADafVyIAAAAcUlEQVR42mNwqFrLQEvMMOIsmA/FNLEAZPB/KJ5PTQsEgPg8kuEwfB4qR5EFuAwn2hJ8hhsA8Xs8hsPwe6hakiwg1nCClmAzPIEEg9FxAiELKDEcqyV0t4DmQUSXSKZLMqVLRqNLUUGXwo5uxfUIrTIBkRJ0DgKJsvcAAAAASUVORK5CYII=",
+        triangle: "iVBORw0KGgoAAAANSUhEUgAAABgAAAAWCAYAAADafVyIAAAAZ0lEQVR42mNwqFrLQEvMMOws2A/ECbS04D8U3wfiAiAWoJUFMPweiPuBWIFWFiDj+UDsQEsLYJikeCLHApLiiRILiIonaliAN56GhAU0CyKaRTLNkilNMhrNigqaFXY0L65Hq0wMDABEy3QOQp9S5AAAAABJRU5ErkJggg==",
+        hexagon: "iVBORw0KGgoAAAANSUhEUgAAABgAAAAWCAYAAADafVyIAAAAcklEQVR42mNwqFrLQEvMMOwt2A/E/wng/eRakECE4TCcQI4F90mw4D6pFjSQYDgMNxBrgQAQvyfDgvdQvQQtmE+G4TA8n5AFChQYDsMK+CzYTwUL9g+oBTQPIppHMl2SKc0zGl2KCroUdjQvrkerTDAGACLru8aF0oNSAAAAAElFTkSuQmCC",
+        dot: "iVBORw0KGgoAAAANSUhEUgAAABgAAAAWCAYAAADafVyIAAAASUlEQVR42mNwqFrLQEvMMGrBqAV0tSABiPdDcQK1LTgPxP/R8HlqWZCAxXAYTqCGBfvxWLB/SFhA8yCieSTTJZmOFhWjFgygBQDtZhCyuiOfwwAAAABJRU5ErkJggg=="
+    };
+
+    function base64ToBinary(input) {
+        var keyStr =
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
+        var output = "";
+        var chr1, chr2, chr3, enc1, enc2, enc3, enc4;
+        var i = 0;
+        input = input.replace(/[^A-Za-z0-9+/=]/g, "");
+        while (i < input.length) {
+            enc1 = keyStr.indexOf(input.charAt(i++));
+            enc2 = keyStr.indexOf(input.charAt(i++));
+            enc3 = keyStr.indexOf(input.charAt(i++));
+            enc4 = keyStr.indexOf(input.charAt(i++));
+            chr1 = (enc1 << 2) | (enc2 >> 4);
+            chr2 = ((enc2 & 15) << 4) | (enc3 >> 2);
+            chr3 = ((enc3 & 3) << 6) | enc4;
+            output += String.fromCharCode(chr1);
+            if (enc3 !== 64) { output += String.fromCharCode(chr2); }
+            if (enc4 !== 64) { output += String.fromCharCode(chr3); }
+        }
+        return output;
+    }
+
+    function nodeIconImage(kind) {
+        // Icons are baked PNGs (embedded base64) decoded to a temp file and loaded
+        // as a native image. Image buttons paint without script, so -- unlike the
+        // old onDraw icons -- they never blank during an AE modal dialog.
+        try {
+            var data = NODE_ICON_B64[kind];
+            if (!data) { return undefined; }
+            var file = new File(
+                Folder.temp.fsName + "/fd_node_icon_" + kind + ".png"
+            );
+            file.encoding = "BINARY";
+            if (file.open("w")) {
+                file.write(base64ToBinary(data));
+                file.close();
+            }
+            return file;
+        } catch (iconError) {
+            return undefined;
+        }
+    }
+
+    function setSwatchColor(swatch, rgb, isMixed) {
+        // Native background fill (no onDraw) so swatches survive modal dialogs.
+        try {
+            var g = swatch.graphics;
+            swatch.graphics.backgroundColor = g.newBrush(
+                g.BrushType.SOLID_COLOR,
+                isMixed ? [0.5, 0.5, 0.5] : rgb
+            );
+        } catch (swatchError) {}
+    }
+
     function addNodeIconButton(parent, kind, label) {
-        var button = parent.add("button", undefined, "");
+        var image = nodeIconImage(kind);
+        var button = image
+            ? parent.add("iconbutton", undefined, image, { style: "toolbutton" })
+            : parent.add("button", undefined, label.charAt(0));
         button.preferredSize = [26, 24];
         button.minimumSize = [26, 24];
         button.maximumSize = [26, 24];
         button.helpTip = kind === "dot"
             ? label + ": create an unlabeled junction marker"
             : label + ": click for unlabeled; Option/Alt-click for labeled";
-
-        button.onDraw = function () {
-            var graphics = this.graphics;
-            var width = this.size[0];
-            var height = this.size[1];
-            var left = 6;
-            var top = 5;
-            var right = width - 6;
-            var bottom = height - 5;
-            var centerX = width / 2;
-            var centerY = height / 2;
-            var pen = graphics.newPen(
-                graphics.PenType.SOLID_COLOR,
-                [0.82, 0.86, 0.92],
-                1.5
-            );
-            var brush = graphics.newBrush(
-                graphics.BrushType.SOLID_COLOR,
-                [0.25, 0.48, 0.68]
-            );
-
-            graphics.drawOSControl();
-            drawNodeIconPath(
-                graphics,
-                kind,
-                left,
-                top,
-                right,
-                bottom,
-                centerX,
-                centerY
-            );
-            graphics.fillPath(brush);
-            drawNodeIconPath(
-                graphics,
-                kind,
-                left,
-                top,
-                right,
-                bottom,
-                centerX,
-                centerY
-            );
-            graphics.strokePath(pen);
-        };
         return button;
-    }
-
-    function drawNodeIconPath(
-        graphics,
-        kind,
-        left,
-        top,
-        right,
-        bottom,
-        centerX,
-        centerY
-    ) {
-        graphics.newPath();
-        if (kind === "circle") {
-            graphics.ellipsePath(left + 1, top, right - left - 2, bottom - top);
-        } else if (kind === "dot") {
-            graphics.ellipsePath(centerX - 4, centerY - 4, 8, 8);
-        } else if (kind === "rounded") {
-            graphics.ellipsePath(
-                left,
-                top + 2,
-                right - left,
-                bottom - top - 4
-            );
-        } else if (kind === "rectangle") {
-            graphics.rectPath(left, top + 3, right - left, bottom - top - 6);
-        } else if (kind === "square") {
-            graphics.rectPath(centerX - 6, centerY - 6, 12, 12);
-        } else if (kind === "diamond") {
-            drawPolygonPath(graphics, [
-                [centerX, top],
-                [right, centerY],
-                [centerX, bottom],
-                [left, centerY]
-            ]);
-        } else if (kind === "triangle") {
-            drawPolygonPath(graphics, [
-                [left, top],
-                [right, centerY],
-                [left, bottom]
-            ]);
-        } else {
-            drawPolygonPath(graphics, [
-                [left, centerY],
-                [left + 4, top],
-                [right - 4, top],
-                [right, centerY],
-                [right - 4, bottom],
-                [left + 4, bottom]
-            ]);
-        }
-    }
-
-    function drawPolygonPath(graphics, points) {
-        graphics.moveTo(points[0][0], points[0][1]);
-        var i;
-        for (i = 1; i < points.length; i += 1) {
-            graphics.lineTo(points[i][0], points[i][1]);
-        }
-        graphics.closePath();
     }
 
     function updateNumberControl(control, label, propertyName) {
@@ -1722,7 +1627,7 @@
                 selectedColorIsMixed = false;
                 ui.colorValue.text = rgbToHex(selectedColor);
             }
-            ui.colorButton.notify("onDraw");
+            setSwatchColor(ui.colorButton, selectedColor, selectedColorIsMixed);
         } finally {
             isSyncingControls = false;
         }
@@ -1752,7 +1657,7 @@
             if (selectedColorIsMixed) {
                 selectedColorIsMixed = false;
                 ui.colorValue.text = rgbToHex(selectedColor);
-                ui.colorButton.notify("onDraw");
+                setSwatchColor(ui.colorButton, selectedColor, false);
             }
         } finally {
             isSyncingControls = false;
@@ -2412,7 +2317,7 @@
             ui.nodeFillRow.setColor(preset.nodeFill);
             ui.nodeStrokeRow.setColor(preset.nodeStroke);
             ui.colorValue.text = rgbToHex(preset.connectorColor);
-            ui.colorButton.notify("onDraw");
+            setSwatchColor(ui.colorButton, selectedColor, false);
         }
     }
 
@@ -3294,39 +3199,6 @@
             channelToHex(rgb[0]) +
             channelToHex(rgb[1]) +
             channelToHex(rgb[2]);
-    }
-
-    function drawMixedSwatch(graphics, width, height) {
-        var x = 4;
-        var y = 4;
-        var innerWidth = width - 8;
-        var innerHeight = height - 8;
-        var halfWidth = innerWidth / 2;
-        var halfHeight = innerHeight / 2;
-        var light = graphics.newBrush(
-            graphics.BrushType.SOLID_COLOR,
-            [0.72, 0.72, 0.72]
-        );
-        var dark = graphics.newBrush(
-            graphics.BrushType.SOLID_COLOR,
-            [0.42, 0.42, 0.42]
-        );
-        fillRectangle(graphics, x, y, halfWidth, halfHeight, light);
-        fillRectangle(graphics, x + halfWidth, y, halfWidth, halfHeight, dark);
-        fillRectangle(graphics, x, y + halfHeight, halfWidth, halfHeight, dark);
-        fillRectangle(
-            graphics,
-            x + halfWidth,
-            y + halfHeight,
-            halfWidth,
-            halfHeight,
-            light
-        );
-    }
-
-    function fillRectangle(graphics, x, y, width, height, brush) {
-        graphics.rectPath(x, y, width, height);
-        graphics.fillPath(brush);
     }
 
     function layerIsAlive(layer) {
