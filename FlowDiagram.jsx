@@ -121,6 +121,35 @@
             "Choose node border color"
         );
 
+        // --- TEMP DIAGNOSTIC: which control type shows graphics.backgroundColor?
+        // Left chip = statictext (should be RED), middle = group (GREEN),
+        // right = panel (BLUE). Report which ones actually show their color.
+        var diagRow = nodePanel.add("group");
+        diagRow.orientation = "row";
+        diagRow.add("statictext", undefined, "bg test:");
+        var diagStatic = diagRow.add("statictext", undefined, "");
+        diagStatic.preferredSize = [34, 18];
+        var diagGroup = diagRow.add("group");
+        diagGroup.preferredSize = [34, 18];
+        var diagPanel = diagRow.add("panel");
+        diagPanel.preferredSize = [34, 18];
+        try {
+            diagStatic.graphics.backgroundColor =
+                diagStatic.graphics.newBrush(
+                    diagStatic.graphics.BrushType.SOLID_COLOR, [1, 0, 0]);
+        } catch (eST) {}
+        try {
+            diagGroup.graphics.backgroundColor =
+                diagGroup.graphics.newBrush(
+                    diagGroup.graphics.BrushType.SOLID_COLOR, [0, 1, 0]);
+        } catch (eGP) {}
+        try {
+            diagPanel.graphics.backgroundColor =
+                diagPanel.graphics.newBrush(
+                    diagPanel.graphics.BrushType.SOLID_COLOR, [0, 0, 1]);
+        } catch (ePN) {}
+        // --- END TEMP DIAGNOSTIC
+
         var connectorPanel = panel.add("panel", undefined, "Connector");
         connectorPanel.orientation = "column";
         connectorPanel.alignChildren = ["fill", "top"];
@@ -428,7 +457,54 @@
 
         panel.layout.layout(true);
         startSelectionTracker();
+        try { runIconDiag(); } catch (diagErr) {}
         return panel;
+    }
+
+    function base64ToBinary(input) {
+        var keyStr =
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
+        var output = "";
+        var chr1, chr2, chr3, enc1, enc2, enc3, enc4;
+        var i = 0;
+        input = input.replace(/[^A-Za-z0-9+\/=]/g, "");
+        while (i < input.length) {
+            enc1 = keyStr.indexOf(input.charAt(i++));
+            enc2 = keyStr.indexOf(input.charAt(i++));
+            enc3 = keyStr.indexOf(input.charAt(i++));
+            enc4 = keyStr.indexOf(input.charAt(i++));
+            chr1 = (enc1 << 2) | (enc2 >> 4);
+            chr2 = ((enc2 & 15) << 4) | (enc3 >> 2);
+            chr3 = ((enc3 & 3) << 6) | enc4;
+            output += String.fromCharCode(chr1);
+            if (enc3 !== 64) { output += String.fromCharCode(chr2); }
+            if (enc4 !== 64) { output += String.fromCharCode(chr3); }
+        }
+        return output;
+    }
+
+    // TEMP DIAGNOSTIC: reports exactly where the embedded-image -> iconbutton
+    // pipeline fails (decode / temp file write / ScriptUI.newImage / iconbutton).
+    function runIconDiag() {
+        var b64 = "iVBORw0KGgoAAAANSUhEUgAAABgAAAAWCAYAAADafVyIAAAAfElEQVR42mNwqFrLQEvMMCIsMADi+UB8H4j/Q/F9qJgBJRYIAHE/kqG4cD9ULUkWgDScJ8JwGD6PyxJcFvSTYDiyT4iywIAMw2HYgBgL5lNgwXxiLLhPgQX3ibHgP4V44C2geRDRPJJpnkxpntHoUlTQvLCjS3E9WmWCMQDxU62OXn5/JgAAAABJRU5ErkJggg==";
+        var r = [];
+        var bin = null;
+        var f = null;
+        var img = null;
+        try { r.push("temp: " + Folder.temp.fsName); } catch (e0) { r.push("temp ERR: " + e0); }
+        try { bin = base64ToBinary(b64); r.push("decoded bytes: " + bin.length); } catch (e1) { r.push("decode ERR: " + e1.toString()); }
+        try {
+            f = new File(Folder.temp.fsName + "/fd_diag.png");
+            f.encoding = "BINARY";
+            var opened = f.open("w");
+            r.push("open(w): " + opened);
+            if (opened && bin !== null) { r.push("write: " + f.write(bin)); f.close(); }
+            r.push("exists: " + f.exists + "  length: " + f.length);
+        } catch (e2) { r.push("file ERR: " + e2.toString()); }
+        try { img = f ? ScriptUI.newImage(f) : null; r.push("ScriptUI.newImage: " + (img ? "ok" : "null")); } catch (e3) { r.push("newImage ERR: " + e3.toString()); }
+        try { var w1 = new Window("palette"); w1.add("iconbutton", undefined, f, { style: "toolbutton" }); r.push("iconbutton(File): ok"); } catch (e4) { r.push("iconbutton(File) ERR: " + e4.toString()); }
+        try { var w2 = new Window("palette"); w2.add("iconbutton", undefined, img, { style: "toolbutton" }); r.push("iconbutton(newImage): ok"); } catch (e5) { r.push("iconbutton(newImage) ERR: " + e5.toString()); }
+        alert("FlowDiagram icon diagnostic:\n\n" + r.join("\n"));
     }
 
     function addNumberRow(parent, label, defaultValue) {
