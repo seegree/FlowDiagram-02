@@ -98,7 +98,8 @@ manually editable per node via **Edit Gradient** in the timeline.
 
 The Theme row offers three preset palettes. Selecting one in the dropdown
 changes nothing on its own; **Apply** commits it to the comp's FD Theme
-layer. The dropdown rests on Simulink Modern for a fresh install:
+layer. The dropdown always opens on Simulink Modern; it is a command
+input for Apply, not a readout of the comp's current theme:
 
 - **Simulink Classic** — white blocks, black borders, wires, and text, with
   block drop shadows and subtle gradient shading, matching the classic

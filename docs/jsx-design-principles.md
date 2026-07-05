@@ -29,6 +29,20 @@ control obeys it. Give meaning to the empty state where it's natural
 on the *result* (Cycle, Merge, Split) rather than adding up-front
 configuration. Prefer a smaller build UI plus stronger refine tools over
 a wall of options. Keep action buttons visible on every tab.
+The test for where a value belongs: if it can only be chosen well by
+seeing the result live — you'd scrub it and watch — it belongs on the
+generated artifact (Effect Controls), not in the build panel. Port
+offsets fail the "can you pick it blind?" test; stroke width passes.
+(FlowDiagram: offsets left the panel entirely, saving a row, and the
+Effect Controls workflow is the better one anyway.)
+
+**Persist state, not commands.** A control that only feeds an action
+button (a preset dropdown next to Apply) is a command input, not a
+state readout — don't persist its last value across sessions. A
+remembered command poses as "the current state" and will eventually
+lie, because the real state (colors, sliders) persists on its own and
+drifts. (FlowDiagram: the panel reopened showing "Simulink Classic"
+beside a Gradient of 0 — two memories, one implied lie.)
 
 **Structure must earn its ink.** Category headings only where rows
 aren't self-explanatory; a folder button, dimension fields, and two
@@ -53,12 +67,19 @@ designer's best output.
 
 - **Toolbutton chrome fights custom tiles.** `iconbutton` with
   `style: "toolbutton"` draws its own outline (double border around a
-  bordered PNG), flashes the OS light-blue focus ring on click, and
+  bordered PNG; on macOS a rounded ring even around a plain glyph),
+  flashes the OS light-blue focus ring on click, and
   repaints unreliably when you swap `.image` after creation — tiles
   visually stop toggling. **Fix:** custom `onDraw` that calls
   `graphics.drawImage(this.value ? on : off)`, replacing all native
   painting. Own clicks repaint automatically (ScriptUI re-invokes
   onDraw per mouse/state transition).
+- **Never trade tile quality for modal survival.** Modal blank-out is
+  inherent to AE panels — native-painted controls blank behind a modal
+  too (verified against Key Cloner), so "native paints survive modals"
+  is not a reason to accept toolbutton chrome. The onDraw tile recipe
+  is always the right choice for tiles; the blank-behind-a-dialog is a
+  cost you pay either way, and it heals when the dialog closes.
 - **Programmatic state changes don't repaint** a custom-drawn control
   (radio siblings, presets, all/none). Force it:
   `c.visible = false; c.visible = true;`.
@@ -113,7 +134,11 @@ Rules that make mocks pay off:
 - **The mock's state is the spec.** Checked states become shipped
   defaults; geometry becomes icon geometry. "What you approved is what
   ships" — generate the real PNG icons from the same shapes as the
-  mock's SVG tiles.
+  mock's SVG tiles. Corollary: draw the mock in the fresh-install
+  state, never a mid-workflow state — a mock drawn "after applying a
+  preset" reads as shipped defaults and gets approved as such. Any
+  state a user action produces belongs in an annotation, not in the
+  drawn controls.
 - **Icon honesty test.** Before approving an icon set, try to name each
   tile without its tooltip. Any icon you can't guess gets redrawn.
 - **Compare variants side by side** (current vs. proposals) with a

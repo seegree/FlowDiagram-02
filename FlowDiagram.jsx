@@ -230,11 +230,11 @@
             undefined,
             presetNames
         );
-        presetDropdown.selection = settingDropdownIndex(
-            "themePreset",
-            presetNames,
-            1
-        );
+        // The dropdown is a command input for Apply, not a state readout, so
+        // it is deliberately not persisted: remembering the last-applied
+        // preset made it pose as "the current theme" while the color and
+        // gradient fields (persisted independently) drifted away from it.
+        presetDropdown.selection = 1;
         presetDropdown.preferredSize.width = 118;
         presetDropdown.helpTip =
             "Theme preset; selecting alone changes nothing, Apply commits it";
@@ -2150,7 +2150,6 @@
         saveColorSetting("textColor", preset.textColor);
         saveSetting("shadowOpacity", preset.shadowOpacity);
         saveSetting("gradientAmount", preset.gradientAmount);
-        saveSetting("themePreset", preset.name);
 
         if (ui !== null) {
             setSwatchColor(ui.nodeFillSwatch, preset.nodeFill, false);
