@@ -56,7 +56,8 @@ duration — persist across After Effects sessions.
 
 The first generated layer in a composition also creates a hidden **FD Theme**
 guide layer holding native color and shadow controls (Node Fill, Node Border,
-Connector Color, Text Color, Shadow Opacity). New nodes and connectors follow
+Connector Color, Text Color, Shadow Opacity, Gradient Amount). New nodes and
+connectors follow
 the theme through expressions, so editing the theme restyles the whole diagram
 live, and theme values are keyframeable for animated restyles. Do not rename
 the FD Theme layer; the expressions reference it by name.
@@ -68,17 +69,42 @@ The panel's Fill, Border, and connector Color swatches are theme-aware:
 - With generated nodes or connectors selected, picking a color overrides just
   those layers, detaching them from the theme.
 
-**Use Theme** re-links selected nodes and connectors to the theme, removing
-any overrides. Each node carries a Node Shadow effect whose opacity follows
-the theme's Shadow Opacity slider (0 by default).
+**Reset to Theme** removes those overrides on the selected nodes and wires
+so they follow the theme again. Each node carries a Node Shadow effect whose
+opacity follows the theme's Shadow Opacity slider (0 by default).
+
+### Gradient Shading
+
+Each node (except dots) carries a **Node Gradient** shape group entry: a
+vertical white-to-black gradient rendered above the theme-linked fill, acting
+as a shading overlay. The block's hue keeps coming from Node Fill, so
+presets, theme edits, and overrides work unchanged. The gradient's start and
+end points are expression-tied to the node's own bounds, so the ramp always
+spans the shape top to bottom and tracks auto-sizing, resizing, and
+non-uniform scale.
+
+The panel's **Gradient %** field follows the same selection rules as the
+color swatches: with nothing relevant selected it edits the theme's Gradient
+Amount slider (restyling every linked node), and with nodes selected it
+overrides just those nodes — which is how a diagram gets gradients on some
+blocks but not others. **Reset to Theme** re-links overridden nodes and also
+adds the gradient entry to nodes generated before this feature existed.
+
+After Effects does not expose gradient color stops to scripting, so the
+overlay's stops stay at their default white-to-black ramp; they remain
+manually editable per node via **Edit Gradient** in the timeline.
 
 ### Presets
 
-The Theme panel offers three preset palettes applied to the FD Theme layer:
+The Theme row offers three preset palettes. Selecting one in the dropdown
+changes nothing on its own; **Apply** commits it to the comp's FD Theme
+layer. The dropdown rests on Simulink Modern for a fresh install:
 
 - **Simulink Classic** — white blocks, black borders, wires, and text, with
-  block drop shadows, matching the classic Simulink look.
-- **Simulink Modern** — the same monochrome palette without shadows.
+  block drop shadows and subtle gradient shading, matching the classic
+  Simulink look.
+- **Simulink Modern** — the same monochrome palette without shadows or
+  gradients.
 - **Stylized** — the default dark motion-graphics palette.
 
 Applying a preset updates every theme-linked layer live and becomes the
@@ -88,7 +114,9 @@ restyle can also be animated by keyframing the FD Theme layer's effects.
 ## Connect Nodes
 
 1. Select two or more generated nodes.
-2. Choose Straight or Orthogonal and optional side overrides.
+2. Choose the path route (Straight or Orthogonal) and optional From/To side
+   overrides. New wires default to From Auto and To Left, entering blocks
+   Simulink-style from the left.
 3. Click **Connect**.
 
 With exactly two nodes, the panel tracks selection order while it is open. If
@@ -141,16 +169,18 @@ them. The refresh button loads shared values from the current selection.
 
 Available controls:
 
-- Route
-- Start and end side overrides, including Center
-- Start and end port offsets (-50 to 50, percent of the side length), so
-  several connectors can attach to the same side at distinct points, like
-  block ports
-- Stroke width
-- Color
-- Arrowhead size
-- Arrowhead On/Off
-- Duration
+- Path route
+- From and To side overrides, including Center
+- Stroke width (W)
+- Path color
+- Arrowhead size (Head) and the Arrow checkbox
+- Duration in seconds (Dur)
+
+Wires build with their ports at each side's midpoint. To attach several
+wires to the same side at distinct points, like block ports, slide each
+wire's **Start Port Offset** and **End Port Offset** controls (-50 to 50,
+percent of the side length) in Effect Controls after building — the wire
+moves live as the value scrubs.
 
 Connector animation uses Easy Ease by default.
 Arrowheads default to On. The native Arrowhead menu remains editable in Effect
@@ -165,29 +195,6 @@ are left untouched.
 Connector Effect Controls remain editable after creation, even when the panel
 is not installed.
 
-## Import a Simulink Model
-
-**Import .slx** reads a Simulink model file and rebuilds its root system as
-generated nodes and connectors: every block becomes a labeled node placed by
-its model position (scaled to fit the comp), and every signal line becomes a
-connector wired output-side to input-side, with port offsets spreading
-multiple inputs or outputs along a block's edge. Gain blocks import as
-triangles, Sum and Product as circles, Inports and Outports as rounded
-nodes, Switches as diamonds, and everything else as rectangles. Connector
-style (route, stroke, duration, arrowheads) comes from the current panel
-settings, and everything arrives theme-linked, so presets and restyles apply
-normally after import.
-
-Notes and limits:
-
-- Unzipping uses the system shell, so **Allow Scripts to Write Files and
-  Access Network** must be enabled in Scripting & Expressions preferences.
-- Only the root system imports; subsystem contents are not entered.
-- Branched signal lines import as one connector per destination; junction
-  dots are not placed automatically.
-- Simulink's own wire waypoints are ignored; routing follows the panel's
-  Straight/Orthogonal setting.
-
 ## Bake
 
 **Bake** freezes the expressions on selected generated layers — or, with
@@ -196,8 +203,8 @@ comp. Node sizes, colors, text styling, and connector paths become static
 values; the arrowhead's ride along the draw-on animation is converted to
 keyframes, so the animation survives. Use it on finished or very large
 diagrams to recover preview performance. Baked layers no longer follow nodes
-or the theme; **Use Theme** can re-link colors afterward, but geometry stays
-frozen.
+or the theme; **Reset to Theme** can re-link colors afterward, but geometry
+stays frozen.
 
 ## MVP Limits
 

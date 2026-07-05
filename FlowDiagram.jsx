@@ -30,7 +30,8 @@
             nodeStroke: [0, 0, 0],
             connectorColor: [0, 0, 0],
             textColor: [0, 0, 0],
-            shadowOpacity: 75
+            shadowOpacity: 75,
+            gradientAmount: 20
         },
         {
             name: "Simulink Modern",
@@ -38,7 +39,8 @@
             nodeStroke: [0, 0, 0],
             connectorColor: [0, 0, 0],
             textColor: [0, 0, 0],
-            shadowOpacity: 0
+            shadowOpacity: 0,
+            gradientAmount: 0
         },
         {
             name: "Stylized",
@@ -46,7 +48,8 @@
             nodeStroke: DEFAULT_NODE_STROKE,
             connectorColor: DEFAULT_CONNECTOR_COLOR,
             textColor: DEFAULT_TEXT_COLOR,
-            shadowOpacity: 0
+            shadowOpacity: 0,
+            gradientAmount: 0
         }
     ];
 
@@ -81,13 +84,7 @@
         panel.spacing = 5;
         panel.margins = 8;
 
-        var nodePanel = panel.add("panel", undefined, "Nodes");
-        nodePanel.orientation = "column";
-        nodePanel.alignChildren = ["fill", "top"];
-        nodePanel.spacing = 4;
-        nodePanel.margins = 7;
-
-        var nodeButtons = nodePanel.add("group");
+        var nodeButtons = panel.add("group");
         nodeButtons.orientation = "row";
         nodeButtons.alignChildren = ["center", "center"];
         nodeButtons.spacing = 2;
@@ -108,102 +105,127 @@
         var hexagonButton = addNodeIconButton(nodeButtons, "hexagon", "Hexagon");
         var dotButton = addNodeIconButton(nodeButtons, "dot", "Dot");
 
-        var nodeFillRow = addColorRow(
-            nodePanel,
+        var nodeStyleRow = panel.add("group");
+        nodeStyleRow.orientation = "row";
+        nodeStyleRow.alignChildren = ["left", "center"];
+        addRowLabel(
+            nodeStyleRow,
             "Fill",
-            selectedNodeFill,
-            "Choose node fill color"
+            "Node fill color; edits the theme, or overrides selected nodes"
         );
-        var nodeStrokeRow = addColorRow(
-            nodePanel,
+        var nodeFillSwatch = addSwatch(
+            nodeStyleRow,
+            "Choose node fill color",
+            selectedNodeFill
+        );
+        addRowLabel(
+            nodeStyleRow,
             "Border",
-            selectedNodeStroke,
-            "Choose node border color"
+            "Node border color; edits the theme, or overrides selected nodes"
         );
+        var nodeStrokeSwatch = addSwatch(
+            nodeStyleRow,
+            "Choose node border color",
+            selectedNodeStroke
+        );
+        var gradientTip =
+            "Gradient shading amount, 0 to 100; edits the theme, or " +
+            "overrides selected nodes";
+        addRowLabel(nodeStyleRow, "Gradient %", gradientTip);
+        var gradientInput = nodeStyleRow.add(
+            "edittext",
+            undefined,
+            String(readGradientAmountSetting())
+        );
+        gradientInput.characters = 4;
+        gradientInput.helpTip = gradientTip;
 
-        var connectorPanel = panel.add("panel", undefined, "Connector");
-        connectorPanel.orientation = "column";
-        connectorPanel.alignChildren = ["fill", "top"];
-        connectorPanel.spacing = 4;
-        connectorPanel.margins = 7;
+        addDividerRule(panel);
 
-        var typeRow = addDropdownRow(
-            connectorPanel,
-            "Route",
-            ROUTE_ITEMS,
-            settingDropdownIndex("route", ROUTE_ITEMS, 1)
+        var pathRow = panel.add("group");
+        pathRow.orientation = "row";
+        pathRow.alignChildren = ["left", "center"];
+        addRowLabel(pathRow, "Path route", "Connector route");
+        var typeInput = pathRow.add("dropdownlist", undefined, ROUTE_ITEMS);
+        typeInput.selection = settingDropdownIndex("route", ROUTE_ITEMS, 1);
+        typeInput.preferredSize.width = 96;
+        addRowLabel(pathRow, "Path color", "Connector color");
+        var colorButton = addSwatch(
+            pathRow,
+            "Choose connector color",
+            selectedColor
         );
-        var startSideRow = addDropdownRow(
-            connectorPanel,
-            "Start side",
-            SIDE_ITEMS,
-            settingDropdownIndex("startSide", SIDE_ITEMS, 0)
-        );
-        var endSideRow = addDropdownRow(
-            connectorPanel,
-            "End side",
-            SIDE_ITEMS,
-            settingDropdownIndex("endSide", SIDE_ITEMS, 0)
-        );
-        var startOffsetRow = addNumberRow(
-            connectorPanel,
-            "Start offset %",
-            readOffsetSetting("startOffset", 0)
-        );
-        startOffsetRow.input.helpTip =
-            "Slide the start point along its side, -50 to 50";
-        var endOffsetRow = addNumberRow(
-            connectorPanel,
-            "End offset %",
-            readOffsetSetting("endOffset", 0)
-        );
-        endOffsetRow.input.helpTip =
-            "Slide the end point along its side, -50 to 50";
-        var strokeRow = addNumberRow(
-            connectorPanel,
-            "Stroke width",
-            readNumberSetting("strokeWidth", DEFAULT_STROKE_WIDTH)
-        );
-        var headRow = addNumberRow(
-            connectorPanel,
-            "Arrowhead size",
-            readNumberSetting("headSize", DEFAULT_HEAD_SIZE)
-        );
-        var arrowheadRow = addDropdownRow(
-            connectorPanel,
-            "Arrowhead",
-            ARROWHEAD_ITEMS,
-            settingDropdownIndex("arrowhead", ARROWHEAD_ITEMS, 0)
-        );
-        var durationRow = addNumberRow(
-            connectorPanel,
-            "Duration (seconds)",
-            readNumberSetting("duration", DEFAULT_DURATION)
-        );
-        var colorRow = connectorPanel.add("group");
-        colorRow.orientation = "row";
-        colorRow.alignChildren = ["left", "center"];
-        var colorLabel = colorRow.add("statictext", undefined, "Color");
-        colorLabel.preferredSize.width = 88;
-        var colorButton = colorRow.add("group");
-        colorButton.preferredSize = [38, 20];
-        colorButton.helpTip = "Choose connector color";
-        setSwatchColor(colorButton, selectedColor, selectedColorIsMixed);
-        var colorValue = colorRow.add("statictext", undefined, rgbToHex(selectedColor));
-        colorValue.characters = 7;
-        var refreshButton = colorRow.add("button", undefined, "\u21BB");
+        var refreshButton = pathRow.add("button", undefined, "\u21BB");
         refreshButton.preferredSize = [22, 20];
         refreshButton.minimumSize = [22, 20];
         refreshButton.maximumSize = [22, 20];
         refreshButton.helpTip = "Load settings from selected connectors";
 
-        var themePanel = panel.add("panel", undefined, "Theme");
-        themePanel.orientation = "row";
-        themePanel.alignChildren = ["left", "center"];
-        themePanel.spacing = 4;
-        themePanel.margins = 7;
+        var portTip =
+            "Ports attach at each side's midpoint; slide them afterward " +
+            "with the wire's Start/End Port Offset controls in Effect " +
+            "Controls, watching it move live";
+        var sideRow = panel.add("group");
+        sideRow.orientation = "row";
+        sideRow.alignChildren = ["left", "center"];
+        addRowLabel(
+            sideRow,
+            "From",
+            "Side the wire leaves the first node from"
+        );
+        var startSideInput = sideRow.add("dropdownlist", undefined, SIDE_ITEMS);
+        startSideInput.selection = settingDropdownIndex(
+            "startSide",
+            SIDE_ITEMS,
+            0
+        );
+        startSideInput.preferredSize.width = 82;
+        startSideInput.helpTip = portTip;
+        addRowLabel(sideRow, "\u2192", portTip);
+        var endSideInput = sideRow.add("dropdownlist", undefined, SIDE_ITEMS);
+        endSideInput.selection = settingDropdownIndex("endSide", SIDE_ITEMS, 4);
+        endSideInput.preferredSize.width = 82;
+        endSideInput.helpTip = "Side the wire enters the second node";
+
+        var numberRow = panel.add("group");
+        numberRow.orientation = "row";
+        numberRow.alignChildren = ["left", "center"];
+        addRowLabel(numberRow, "W", "Stroke width, px");
+        var strokeInput = numberRow.add(
+            "edittext",
+            undefined,
+            String(readNumberSetting("strokeWidth", DEFAULT_STROKE_WIDTH))
+        );
+        strokeInput.characters = 3;
+        strokeInput.helpTip = "Stroke width, px";
+        addRowLabel(numberRow, "Head", "Arrowhead size, px");
+        var headInput = numberRow.add(
+            "edittext",
+            undefined,
+            String(readNumberSetting("headSize", DEFAULT_HEAD_SIZE))
+        );
+        headInput.characters = 3;
+        headInput.helpTip = "Arrowhead size, px";
+        var arrowCheck = numberRow.add("checkbox", undefined, "Arrow");
+        arrowCheck.value =
+            settingDropdownIndex("arrowhead", ARROWHEAD_ITEMS, 0) === 0;
+        arrowCheck.helpTip = "Draw an arrowhead at the wire's destination";
+        addRowLabel(numberRow, "Dur (s)", "Draw-on duration in seconds");
+        var durationInput = numberRow.add(
+            "edittext",
+            undefined,
+            String(readNumberSetting("duration", DEFAULT_DURATION))
+        );
+        durationInput.characters = 3;
+        durationInput.helpTip = "Draw-on duration in seconds";
+
+        addDividerRule(panel);
+
+        var themeRow = panel.add("group");
+        themeRow.orientation = "row";
+        themeRow.alignChildren = ["left", "center"];
         var presetNames = themePresetNames();
-        var presetDropdown = themePanel.add(
+        var presetDropdown = themeRow.add(
             "dropdownlist",
             undefined,
             presetNames
@@ -211,50 +233,54 @@
         presetDropdown.selection = settingDropdownIndex(
             "themePreset",
             presetNames,
-            presetNames.length - 1
+            1
         );
-        presetDropdown.preferredSize.width = 140;
-        var applyPresetButton = themePanel.add("button", undefined, "Apply");
+        presetDropdown.preferredSize.width = 118;
+        presetDropdown.helpTip =
+            "Theme preset; selecting alone changes nothing, Apply commits it";
+        var applyPresetButton = themeRow.add("button", undefined, "Apply");
         applyPresetButton.helpTip =
-            "Apply the preset palette to this comp's FD Theme layer";
+            "Apply the preset palette to this comp's FD Theme layer, " +
+            "restyling every theme-linked node and wire";
+        var resetThemeButton = themeRow.add(
+            "button",
+            undefined,
+            "Reset to Theme"
+        );
+        resetThemeButton.helpTip =
+            "Remove color overrides on the selected nodes and wires so " +
+            "they follow the theme again";
 
-        var connectButton = panel.add("button", undefined, "Connect");
-        connectButton.alignment = ["fill", "top"];
-        connectButton.preferredSize.height = 28;
-        connectButton.helpTip =
-            "Connect selected nodes; Option/Alt-click connects every unique pair";
         var actionRow = panel.add("group");
         actionRow.orientation = "row";
         actionRow.alignment = ["fill", "top"];
         actionRow.alignChildren = ["fill", "center"];
+        var connectButton = actionRow.add("button", undefined, "Connect");
+        connectButton.preferredSize = [110, 26];
+        connectButton.helpTip =
+            "Connect selected nodes; Option/Alt-click connects every unique pair";
+        styleAccentButton(connectButton);
         var reverseButton = actionRow.add("button", undefined, "Reverse");
+        reverseButton.preferredSize.height = 26;
         reverseButton.helpTip = "Reverse selected connector directions";
-        var themeButton = actionRow.add("button", undefined, "Use Theme");
-        themeButton.helpTip =
-            "Re-link selected nodes and connectors to the FD Theme layer";
         var bakeButton = actionRow.add("button", undefined, "Bake");
+        bakeButton.preferredSize.height = 26;
         bakeButton.helpTip =
             "Freeze expressions on selected generated layers " +
             "(all generated layers if none are selected)";
-        var importButton = panel.add("button", undefined, "Import .slx");
-        importButton.alignment = ["fill", "top"];
-        importButton.helpTip =
-            "Build a flow diagram from a Simulink .slx model";
 
         ui = {
-            type: typeRow.input,
-            startSide: startSideRow.input,
-            endSide: endSideRow.input,
-            startOffset: startOffsetRow.input,
-            endOffset: endOffsetRow.input,
-            stroke: strokeRow.input,
-            head: headRow.input,
-            arrowhead: arrowheadRow.input,
-            duration: durationRow.input,
+            type: typeInput,
+            startSide: startSideInput,
+            endSide: endSideInput,
+            stroke: strokeInput,
+            head: headInput,
+            arrowhead: arrowCheck,
+            duration: durationInput,
+            gradient: gradientInput,
             colorButton: colorButton,
-            colorValue: colorValue,
-            nodeFillRow: nodeFillRow,
-            nodeStrokeRow: nodeStrokeRow
+            nodeFillSwatch: nodeFillSwatch,
+            nodeStrokeSwatch: nodeStrokeSwatch
         };
 
         applyPresetButton.onClick = function () {
@@ -289,89 +315,79 @@
             createNode("dot", true);
         };
 
-        nodeFillRow.button.addEventListener("mousedown", function () {
+        nodeFillSwatch.addEventListener("mousedown", function () {
             var picked = $.colorPicker();
             if (picked >= 0) {
                 selectedNodeFill = integerToRgb(picked);
-                nodeFillRow.setColor(selectedNodeFill);
+                setSwatchColor(nodeFillSwatch, selectedNodeFill, false);
                 saveColorSetting("nodeFill", selectedNodeFill);
                 applyNodeColorChoice({ fill: selectedNodeFill });
             }
         });
-        nodeStrokeRow.button.addEventListener("mousedown", function () {
+        nodeStrokeSwatch.addEventListener("mousedown", function () {
             var picked = $.colorPicker();
             if (picked >= 0) {
                 selectedNodeStroke = integerToRgb(picked);
-                nodeStrokeRow.setColor(selectedNodeStroke);
+                setSwatchColor(nodeStrokeSwatch, selectedNodeStroke, false);
                 saveColorSetting("nodeStroke", selectedNodeStroke);
                 applyNodeColorChoice({ stroke: selectedNodeStroke });
             }
         });
+        gradientInput.onChange = function () {
+            var amount = parseFloat(gradientInput.text);
+            if (isNaN(amount)) {
+                gradientInput.text = String(readGradientAmountSetting());
+                return;
+            }
+            amount = Math.max(0, Math.min(100, amount));
+            gradientInput.text = String(amount);
+            saveSetting("gradientAmount", amount);
+            applyNodeColorChoice({ gradient: amount });
+        };
 
         colorButton.addEventListener("mousedown", function () {
             var picked = $.colorPicker();
             if (picked >= 0) {
                 selectedColor = integerToRgb(picked);
                 selectedColorIsMixed = false;
-                colorValue.text = rgbToHex(selectedColor);
                 setSwatchColor(colorButton, selectedColor, false);
                 saveColorSetting("connectorColor", selectedColor);
                 applyConnectorColorChoice(selectedColor);
             }
         });
 
-        startOffsetRow.input.onChange = function () {
-            updateOffsetControl(
-                startOffsetRow.input,
-                "Start offset",
-                "startOffset"
-            );
+        strokeInput.onChange = function () {
+            updateNumberControl(strokeInput, "Stroke width", "strokeWidth");
         };
-        endOffsetRow.input.onChange = function () {
-            updateOffsetControl(
-                endOffsetRow.input,
-                "End offset",
-                "endOffset"
-            );
+        headInput.onChange = function () {
+            updateNumberControl(headInput, "Arrowhead size", "headSize");
         };
-        strokeRow.input.onChange = function () {
-            updateNumberControl(
-                strokeRow.input,
-                "Stroke width",
-                "strokeWidth"
-            );
+        durationInput.onChange = function () {
+            updateNumberControl(durationInput, "Duration", "duration");
         };
-        headRow.input.onChange = function () {
-            updateNumberControl(
-                headRow.input,
-                "Arrowhead size",
-                "headSize"
-            );
+        typeInput.onChange = function () {
+            updateDropdownControl(typeInput, "route");
         };
-        durationRow.input.onChange = function () {
-            updateNumberControl(
-                durationRow.input,
-                "Duration",
-                "duration"
-            );
+        startSideInput.onChange = function () {
+            updateDropdownControl(startSideInput, "startSide");
         };
-        typeRow.input.onChange = function () {
-            updateDropdownControl(typeRow.input, "route");
+        endSideInput.onChange = function () {
+            updateDropdownControl(endSideInput, "endSide");
         };
-        startSideRow.input.onChange = function () {
-            updateDropdownControl(startSideRow.input, "startSide");
-        };
-        endSideRow.input.onChange = function () {
-            updateDropdownControl(endSideRow.input, "endSide");
-        };
-        arrowheadRow.input.onChange = function () {
-            updateDropdownControl(arrowheadRow.input, "arrowhead");
+        arrowCheck.onClick = function () {
+            if (isSyncingControls) {
+                return;
+            }
+            var choice = arrowCheck.value
+                ? ARROWHEAD_ITEMS[0]
+                : ARROWHEAD_ITEMS[1];
+            saveSetting("arrowhead", choice);
+            updateSelectedConnectors({ arrowhead: choice });
         };
         connectButton.onClick = createConnectorFromSelection;
         reverseButton.onClick = reverseSelectedConnectors;
-        themeButton.onClick = relinkSelectionToTheme;
+        resetThemeButton.onClick = relinkSelectionToTheme;
         bakeButton.onClick = bakeGeneratedLayers;
-        importButton.onClick = importSlxModel;
         refreshButton.onClick = syncControlsFromSelection;
         panel.onActivate = syncControlsFromSelection;
         // The capture-phase "focus" listener was removed: it re-ran the refresh
@@ -391,63 +407,87 @@
         return panel;
     }
 
-    function addNumberRow(parent, label, defaultValue) {
-        var row = parent.add("group");
-        row.orientation = "row";
-        row.alignChildren = ["left", "center"];
-        var labelControl = row.add("statictext", undefined, label);
-        labelControl.preferredSize.width = 88;
-        var input = row.add("edittext", undefined, String(defaultValue));
-        input.characters = 6;
-        return { row: row, input: input };
+    function addRowLabel(parent, text, helpTip) {
+        var label = parent.add("statictext", undefined, text);
+        label.helpTip = helpTip;
+        return label;
     }
 
-    function addDropdownRow(parent, label, items, selectedIndex) {
-        var row = parent.add("group");
-        row.orientation = "row";
-        row.alignChildren = ["left", "center"];
-        var labelControl = row.add("statictext", undefined, label);
-        labelControl.preferredSize.width = 88;
-        var input = row.add("dropdownlist", undefined, items);
-        input.selection = selectedIndex;
-        input.preferredSize.width = 104;
-        return { row: row, input: input };
-    }
-
-    function addColorRow(parent, label, initialColor, helpTip) {
-        var row = parent.add("group");
-        row.orientation = "row";
-        row.alignChildren = ["left", "center"];
-        var labelControl = row.add("statictext", undefined, label);
-        labelControl.preferredSize.width = 88;
-        var swatch = row.add("group");
-        swatch.preferredSize = [38, 20];
+    function addSwatch(parent, helpTip, initialColor) {
+        var swatch = parent.add("group");
+        swatch.preferredSize = [34, 18];
         swatch.helpTip = helpTip;
         setSwatchColor(swatch, initialColor, false);
-        var value = row.add("statictext", undefined, rgbToHex(initialColor));
-        value.characters = 7;
+        return swatch;
+    }
 
-        return {
-            row: row,
-            button: swatch,
-            value: value,
-            setColor: function (color) {
-                value.text = rgbToHex(color);
-                setSwatchColor(swatch, color, false);
+    function addDividerRule(parent) {
+        var rule = parent.add("panel");
+        rule.alignment = ["fill", "top"];
+        rule.preferredSize.height = 2;
+        rule.minimumSize.height = 2;
+        rule.maximumSize.height = 2;
+    }
+
+    function styleAccentButton(button) {
+        // ScriptUI has no native colored button, so the one accent (Connect,
+        // the app's primary action) is custom-painted. Script-painted
+        // controls blank while an AE modal is open -- accepted as inherent
+        // (see HANDOFF-panel-rendering.md); the button keeps working.
+        button.onDraw = function (drawState) {
+            try {
+                var g = this.graphics;
+                var shade = [0.21, 0.50, 0.72];
+                if (drawState && drawState.leftButtonPressed) {
+                    shade = [0.16, 0.40, 0.58];
+                } else if (drawState && drawState.mouseOver) {
+                    shade = [0.25, 0.57, 0.80];
+                }
+                g.newPath();
+                g.rectPath(0, 0, this.size[0], this.size[1]);
+                g.fillPath(g.newBrush(g.BrushType.SOLID_COLOR, shade));
+                var font = ScriptUI.newFont(
+                    g.font.name,
+                    ScriptUI.FontStyle.BOLD,
+                    g.font.size
+                );
+                var extent = g.measureString(this.text, font);
+                g.drawString(
+                    this.text,
+                    g.newPen(g.PenType.SOLID_COLOR, [1, 1, 1], 1),
+                    Math.round((this.size[0] - extent[0]) / 2),
+                    Math.round((this.size[1] - extent[1]) / 2),
+                    font
+                );
+            } catch (drawError) {
+                // A failed paint must still leave a clickable button.
             }
         };
     }
 
+    // Regenerate with tools/make_icons.py; it splices between the markers.
+    /*__ICON_DATA_BEGIN__*/
     var NODE_ICON_B64 = {
-        rounded: "iVBORw0KGgoAAAANSUhEUgAAABgAAAAWCAYAAADafVyIAAAAT0lEQVR42mNwqFrLQEvMMGrBoLTAAIjnA/F+EvF8qF68FoAUvAfi/2Ti9+iWoFuwnwLDYXg/Pgv+UwmPWjCSLaB5MqV5RqN5UTFaXA9DCwAxTaiSFXYFaQAAAABJRU5ErkJggg==",
-        rectangle: "iVBORw0KGgoAAAANSUhEUgAAABgAAAAWCAYAAADafVyIAAAAKElEQVR42mNwqFrLQEvMMGrByLPgP5XwqAWjFoxaMJAWjBZ2oxaQjgHZ95fq5uIFoAAAAABJRU5ErkJggg==",
-        square: "iVBORw0KGgoAAAANSUhEUgAAABgAAAAWCAYAAADafVyIAAAANElEQVR42mNwqFrLQEvMMCwtEABiBzKxADEWgBT+JxM7jFowasGoBaMWjFpAr+J6tMpEwQCGIbYaisu+IAAAAABJRU5ErkJggg==",
-        circle: "iVBORw0KGgoAAAANSUhEUgAAABgAAAAWCAYAAADafVyIAAAAfElEQVR42mNwqFrLQEvMMCIsMADi+UB8H4j/Q/F9qJgBJRYIAHE/kqG4cD9ULUkWgDScJ8JwGD6PyxJcFvSTYDiyT4iywIAMw2HYgBgL5lNgwXxiLLhPgQX3ibHgP4V44C2geRDRPJJpnkxpntHoUlTQvLCjS3E9WmWCMQDxU62OXn5/JgAAAABJRU5ErkJggg==",
-        diamond: "iVBORw0KGgoAAAANSUhEUgAAABgAAAAWCAYAAADafVyIAAAAcUlEQVR42mNwqFrLQEvMMOIsmA/FNLEAZPB/KJ5PTQsEgPg8kuEwfB4qR5EFuAwn2hJ8hhsA8Xs8hsPwe6hakiwg1nCClmAzPIEEg9FxAiELKDEcqyV0t4DmQUSXSKZLMqVLRqNLUUGXwo5uxfUIrTIBkRJ0DgKJsvcAAAAASUVORK5CYII=",
-        triangle: "iVBORw0KGgoAAAANSUhEUgAAABgAAAAWCAYAAADafVyIAAAAZ0lEQVR42mNwqFrLQEvMMOws2A/ECbS04D8U3wfiAiAWoJUFMPweiPuBWIFWFiDj+UDsQEsLYJikeCLHApLiiRILiIonaliAN56GhAU0CyKaRTLNkilNMhrNigqaFXY0L65Hq0wMDABEy3QOQp9S5AAAAABJRU5ErkJggg==",
-        hexagon: "iVBORw0KGgoAAAANSUhEUgAAABgAAAAWCAYAAADafVyIAAAAcklEQVR42mNwqFrLQEvMMOwt2A/E/wng/eRakECE4TCcQI4F90mw4D6pFjSQYDgMNxBrgQAQvyfDgvdQvQQtmE+G4TA8n5AFChQYDsMK+CzYTwUL9g+oBTQPIppHMl2SKc0zGl2KCroUdjQvrkerTDAGACLru8aF0oNSAAAAAElFTkSuQmCC",
-        dot: "iVBORw0KGgoAAAANSUhEUgAAABgAAAAWCAYAAADafVyIAAAASUlEQVR42mNwqFrLQEvMMGrBqAV0tSABiPdDcQK1LTgPxP/R8HlqWZCAxXAYTqCGBfvxWLB/SFhA8yCieSTTJZmOFhWjFgygBQDtZhCyuiOfwwAAAABJRU5ErkJggg=="
+        rounded: "iVBORw0KGgoAAAANSUhEUgAAABoAAAAYCAYAAADkgu3FAAAAyElEQVR42mNggAJXV9cAIG6gMg5gQAZAgfm2trb/zczMqIpBZoLMhvsEJKCmpkYTDLUsAGRRA8h2WlkEMhtkxwiyyNDK/n9c55L/mXP2EYVBakF6SLLIPbHof/2RD2BcsuE6QUtAamDqQXqJsgjkKpCGyl2P/9v4RRAdRCC1ID0gvcg+w2kRKAhAikmxBNkykF6QGQQtggUFuZEPC2qiLEJWSCpG1z84LKJL0NEtMdAtedMtw9K1CBqtJoi1iD5VOd0aJ/RqbgEAemL0xmaykREAAAAASUVORK5CYII=",
+        rectangle: "iVBORw0KGgoAAAANSUhEUgAAABoAAAAYCAYAAADkgu3FAAAAf0lEQVR42mNggAJXV9cAIG6gMg5gQAZAgfm2trb/zczMqIpBZoLMhvsEJKCmpkYTDLUsAGRRA8h2WlkEMhtkx6hF1LMoqLT7f+acfRRhkBkELQIprNz1mGxLYHqJsghZIakYXf+oRaMWDaLkTbcMO1qoDkqL6FOV061xQq/mFgBSwvPu4ok+wgAAAABJRU5ErkJggg==",
+        square: "iVBORw0KGgoAAAANSUhEUgAAABoAAAAYCAYAAADkgu3FAAAAhklEQVR42mNggAJXV9cAIG6gMg5gQAZAgfm2trb/zczMqIpBZoLMhvsEJKCmpkYTDLUsAGRRA8h2WlkEMhtkB06LbPwiyMIkWQTSUH/kA1kY3TKiLPLNriPaJyC1ZFuELShwYVx6Ri0atWjUouFmEd2KIJoXqnSrJmhV8dGnKqdb44RezS0AVUn+Sof3UOMAAAAASUVORK5CYII=",
+        circle: "iVBORw0KGgoAAAANSUhEUgAAABoAAAAYCAYAAADkgu3FAAABAUlEQVR42mNggAJXV9cAIG6gMg5gQAZAgfm2trb/zczMqIpBZoLMhvsEJKCmpkYTDLUsAGRRA8h2WlkEMhtkB1EW6RgY//fNrvufPHnj/8w5+8AYxAaJgeSoYhHIsMpdj//XH/kAxiUbroMxjA+SA6mhyKK4ziVww90Ti1BcD2KDxGCWgtSSZRHIlSAD8padwhs8IDmQGpBabD7DaxFIMyhIQK4lFAcw9SC1ID3o6vFaBPMNKGiITV0gtdh8hdciUIoCaSLGN8i+AukB6SXaIlDyBQUFqXkGpAekd/BZRLego1tioFvypluGpWsRRNdCla7VBDUrPvpU5XRrnNCruQUAyff4SgJF7bEAAAAASUVORK5CYII=",
+        diamond: "iVBORw0KGgoAAAANSUhEUgAAABoAAAAYCAYAAADkgu3FAAAA40lEQVR42mNggAJXV9cAIG6gMg5gQAZAgfm2trb/zczMqIpBZoLMhvsEJKCmpkYTDLUsAGRRA8h2YjTpGBj/j6ifAcYgNjF6QGaD7CDaIpDBectO/a8/8gGMQWxiLCPJIkMre7glcZ1LwBhmGUiOKhaZu/j8r9z1GGywb3YdXBzEBomB5EBqKLLIxi8Cbol7YhGGPEgMZhlILVkWEWMIMY7BaxGxwUIoePFaREpE40sweC0C5Q9Ski6+LAAya+AtolvQ0TUx0DV50zXD0rUIomuhStdqgloVH32qcro1TujV3AIAzL8EiQIe51EAAAAASUVORK5CYII=",
+        triangle: "iVBORw0KGgoAAAANSUhEUgAAABoAAAAYCAYAAADkgu3FAAAAyklEQVR42mNggAJXV9cAIG6gMg5gQAZAgfm2trb/zczMqIpBZoLMhvsEJKCmpkYTDLUsAGRRA8h2WlkEMhtkB1aLDK3s/2fO2fc/qLT7v46BMe0ssvGL+F9/5AMYV+56TJGFRFkUUT/jf8mG6xRZSJRFIBrEd08sQrEQ5ABQ8FLdIhhGthCE4zqXELSQLIuQLQQlFmIspMgiZHWELKSKRbgsBMXh0LSI5kFH88RA8+RN8wxLtyKI5oUq3aoJWlV89KnK6dY4oVdzCwDoGPeSMxWmMAAAAABJRU5ErkJggg==",
+        hexagon: "iVBORw0KGgoAAAANSUhEUgAAABoAAAAYCAYAAADkgu3FAAAA50lEQVR42mNggAJXV9cAIG6gMg5gQAZAgfm2trb/zczMqIpBZoLMhvsEJKCmpkYTDLUsAGRRA8h2WlkEMhtkB0GLbPwiiMIUWRRU2v2//sgHojBILVkWGVrZgw0o2XCdoG9AakBqQXpItihzzj6wZnzBghy8ILUgPSRZ5BSeCtaYPHkj0ZEOUgvSA9JLlEU6Bsb/K3c9BmMQm1iLcOnDaVFE/Qywy3yz60hOyiA9IL0gM/BaBEsAectOkZ1vQHqRE8bAWkS3oKNrYqBb8qZrhqVrEUS3QpWu1QS1Kz76VOV0a5zQq7kFAC5CACUTvrorAAAAAElFTkSuQmCC",
+        dot: "iVBORw0KGgoAAAANSUhEUgAAABoAAAAYCAYAAADkgu3FAAAAkElEQVR42mNggAJXV9cAIG6gMg5gQAZAgfm2trb/zczMqIpBZoLMhvsEJKCmpkYTDLUsAGRRA8h2WlkEMhtkx6hFw8gicxef/8mTN/6vP/IBjEFskBhVLQIZWLnrMdwSGAaJEbKMJIuQfYKOQXJUswiXJTA89CyiW9DRLTHQLXmPFkEjxyL6VOV0a5zQq7kFAMCEzw6InBE8AAAAAElFTkSuQmCC"
     };
+    var NODE_ICON_HOVER_B64 = {
+        rounded: "iVBORw0KGgoAAAANSUhEUgAAABoAAAAYCAYAAADkgu3FAAAAyElEQVR42mNggIK8KRsCgLiByjiAARkABebH1Uz675dSSlUMMhNkNtwnIAF9EyuaYKhlASCLGkC208oikNkgO0aQRbYegf9Lp63/37zyGFEYpBakhySLIvMa/s+/8BWMJ+65R9ASkBqYepBeoiwCuQqkYcaxl/+9ozOJDiKQWpAekF5kn+G0CBQEIMWkWIJsGUgvyAyCFsGCgtzIhwU1URYhKyQVo+sfHBbRJejolhjolrzplmHpWgSNVhPEWkSfqpxujRN6NbcA6Pq7iWGgLV8AAAAASUVORK5CYII=",
+        rectangle: "iVBORw0KGgoAAAANSUhEUgAAABoAAAAYCAYAAADkgu3FAAAAgElEQVR42mNggIK8KRsCgLiByjiAARkABebH1Uz675dSSlUMMhNkNtwnIAF9EyuaYKhlASCLGkC208oikNkgO0Ytop5F6U0z/jevPEYRBplB0CKQwhnHXpJtCUwvURYhKyQVo+sftWjUokGUvOmWYUcL1UFpEX2qcro1TujV3AIASza6mQLI5nYAAAAASUVORK5CYII=",
+        square: "iVBORw0KGgoAAAANSUhEUgAAABoAAAAYCAYAAADkgu3FAAAAh0lEQVR42mNggIK8KRsCgLiByjiAARkABebH1Uz675dSSlUMMhNkNtwnIAF9EyuaYKhlASCLGkC208oikNkgO3Ba5B2dSRYmySKQhvkXvpKF0S0jyqKEih6ifQJSS7ZF2IICF8alZ9SiUYtGLRpuFtGtCKJ5oUq3aoJWFR99qnK6NU7o1dwCALDtxXEZcKHOAAAAAElFTkSuQmCC",
+        circle: "iVBORw0KGgoAAAANSUhEUgAAABoAAAAYCAYAAADkgu3FAAABAklEQVR42mNggIK8KRsCgLiByjiAARkABebH1Uz675dSSlUMMhNkNtwnIAF9EyuaYKhlASCLGkC208oikNkgO4iyyMzO7X9CRc//mvm7/zevPAbGIDZIDCRHFYtAhs049vL//AtfwXjinntgDOOD5EBqKLKodNp6uOGReQ0orgexQWIwS0FqybII5EqQAV2bL+ENHpAcSA1ILTaf4bUIpBkUJCDXEooDmHqQWpAedPV4LYL5BhQ0xKYukFpsvsJrEShFgTQR4xtkX4H0gPQSbREo+YKCgtQ8A9ID0jv4LKJb0NEtMdAtedMtw9K1CKJroUrXaoKaFR99qnK6NU7o1dwCAK72vyW1oee8AAAAAElFTkSuQmCC",
+        diamond: "iVBORw0KGgoAAAANSUhEUgAAABoAAAAYCAYAAADkgu3FAAAA40lEQVR42mNggIK8KRsCgLiByjiAARkABebH1Uz675dSSlUMMhNkNtwnIAF9EyuaYKhlASCLGkC2E6PJzM7tf17PYjAGsYnRAzIbZAfRFoEM7tp86f/8C1/BGMQmxjKSLLL1CIRbUjptPRjDLAPJUcUil8DY/zOOvQQbnFDRAxcHsUFiIDmQGoos8o7OhFsSmdeAIQ8Sg1kGUkuWRcQYQoxj8FpEbLAQCl68FpES0fgSDF6LQPmDlKSLLwuAzBp4i+gWdHRNDHRN3nTNsHQtguhaqNK1mqBWxUefqpxujRN6NbcA7gXLlRUdWhoAAAAASUVORK5CYII=",
+        triangle: "iVBORw0KGgoAAAANSUhEUgAAABoAAAAYCAYAAADkgu3FAAAAy0lEQVR42mNggIK8KRsCgLiByjiAARkABebH1Uz675dSSlUMMhNkNtwnIAF9EyuaYKhlASCLGkC208oikNkgO7BaZOsR+L955bH/6U0z/pvZudHOIu/ozP/zL3wF4xnHXlJkIVEW5fUs/j9xzz2KLCTKIhAN4kfmNaBYCHIAKHipbhEMI1sIwqXT1hO0kCyLkC0EJRZiLKTIImR1hCykikW4LATF4dC0iOZBR/PEQPPkTfMMS7ciiOaFKt2qCVpVfPSpyunWOKFXcwsAMCW+f9ZUFd4AAAAASUVORK5CYII=",
+        hexagon: "iVBORw0KGgoAAAANSUhEUgAAABoAAAAYCAYAAADkgu3FAAAA6ElEQVR42mNggIK8KRsCgLiByjiAARkABebH1Uz675dSSlUMMhNkNtwnIAF9EyuaYKhlASCLGkC208oikNkgOwha5B2dSRSmyKL0phn/51/4ShQGqSXLIluPQLABE/fcI+gbkBqQWpAeki1qXnkMrBlfsCAHL0gtSA9JFgWlloA11szfTXSkg9SC9ID0EmWRmZ3b/xnHXoIxiE2sRbj04bQor2cx2GUJFT0kJ2WQHpBekBl4LYIlgK7Nl8jONyC9yAljYC2iW9DRNTHQLXnTNcPStQiiW6FK12qC2hUffapyujVO6NXcAgA7ZsctLxSScwAAAABJRU5ErkJggg==",
+        dot: "iVBORw0KGgoAAAANSUhEUgAAABoAAAAYCAYAAADkgu3FAAAAkElEQVR42mNggIK8KRsCgLiByjiAARkABebH1Uz675dSSlUMMhNkNtwnIAF9EyuaYKhlASCLGkC208oikNkgO0YtGkYWuQTG/q+Zv/v//AtfwRjEBolR1SKQgTOOvYRbAsMgMUKWkWQRsk/QMUiOahbhsgSGh55FdAs6uiUGuiXv0SJo5FhEn6qcbo0TejW3ANzelVnIEqkvAAAAAElFTkSuQmCC"
+    };
+    /*__ICON_DATA_END__*/
 
     function base64ToBinary(input) {
         var keyStr =
@@ -471,22 +511,26 @@
         return output;
     }
 
-    function nodeIconImage(kind) {
-        // Icons are baked PNGs (embedded base64) decoded to a temp file and loaded
-        // as a native image. Image buttons paint without script, so -- unlike the
-        // old onDraw icons -- they never blank during an AE modal dialog.
+    function nodeIconImage(kind, hover) {
+        // Icons are baked PNGs (embedded base64) decoded to a temp file and
+        // loaded as ScriptUI images. The whole tile look (background, border,
+        // glyph) is in the PNG; addNodeIconButton paints it with onDraw so
+        // the native toolbutton's rounded chrome never draws around it.
         try {
-            var data = NODE_ICON_B64[kind];
+            var data = hover
+                ? NODE_ICON_HOVER_B64[kind]
+                : NODE_ICON_B64[kind];
             if (!data) { return undefined; }
             var file = new File(
-                Folder.temp.fsName + "/fd_node_icon_" + kind + ".png"
+                Folder.temp.fsName + "/fd_node_icon_" + kind +
+                    (hover ? "_hover" : "") + ".png"
             );
             file.encoding = "BINARY";
             if (file.open("w")) {
                 file.write(base64ToBinary(data));
                 file.close();
             }
-            return file;
+            return ScriptUI.newImage(file);
         } catch (iconError) {
             return undefined;
         }
@@ -504,12 +548,28 @@
     }
 
     function addNodeIconButton(parent, kind, label) {
-        var image = nodeIconImage(kind);
+        var image = nodeIconImage(kind, false);
+        var hoverImage = nodeIconImage(kind, true);
         var button;
         if (image) {
             button = parent.add(
                 "iconbutton", undefined, image, { style: "toolbutton" }
             );
+            // onDraw replaces all native painting: no rounded toolbutton
+            // chrome around the tile, no OS focus ring. Cost, accepted per
+            // HANDOFF-panel-rendering.md: script-painted tiles blank behind
+            // a modal dialog and repaint when it closes.
+            button.onDraw = function (drawState) {
+                try {
+                    this.graphics.drawImage(
+                        drawState && drawState.mouseOver && hoverImage
+                            ? hoverImage
+                            : image,
+                        0,
+                        0
+                    );
+                } catch (tileDrawError) {}
+            };
         } else {
             // Fallback when "Allow Scripts to Write Files" is off (no temp PNG):
             // draw the shape with onDraw. Works, but blanks during modal dialogs.
@@ -536,11 +596,12 @@
             var bottom = height - 5;
             var centerX = width / 2;
             var centerY = height / 2;
+            // Accent blue matching the baked PNG icons (tools/make_icons.py).
             var pen = graphics.newPen(
-                graphics.PenType.SOLID_COLOR, [0.82, 0.86, 0.92], 1.5
+                graphics.PenType.SOLID_COLOR, [0.50, 0.77, 0.94], 1.5
             );
             var brush = graphics.newBrush(
-                graphics.BrushType.SOLID_COLOR, [0.25, 0.48, 0.68]
+                graphics.BrushType.SOLID_COLOR, [0.13, 0.18, 0.23]
             );
             graphics.drawOSControl();
             drawNodeIconPath(
@@ -598,19 +659,6 @@
             return;
         }
         var value = parsePositiveNumber(control.text, label, true);
-        if (value !== null) {
-            saveSetting(propertyName, value);
-            var settings = {};
-            settings[propertyName] = value;
-            updateSelectedConnectors(settings);
-        }
-    }
-
-    function updateOffsetControl(control, label, propertyName) {
-        if (isSyncingControls) {
-            return;
-        }
-        var value = parseOffsetNumber(control.text, label, true);
         if (value !== null) {
             saveSetting(propertyName, value);
             var settings = {};
@@ -867,6 +915,13 @@
         var strokeThemeControl =
             kind === "dot" ? "Connector Color" : "Node Border";
 
+        // The gradient must be added before the fill: shape contents render
+        // top-of-list in front, and reordering afterward with moveTo trips
+        // AE's internal stream verification.
+        if (kind !== "dot") {
+            addNodeGradient(contents);
+        }
+
         var fill = contents.addProperty("ADBE Vector Graphic - Fill");
         fill.name = "Node Fill";
         var fillColor = fill.property("ADBE Vector Fill Color");
@@ -882,6 +937,107 @@
         strokeColor.expression = themeColorExpression(strokeThemeControl);
         stroke.property("ADBE Vector Stroke Width").setValue(3);
         stroke.property("ADBE Vector Stroke Line Join").setValue(2);
+    }
+
+    // Gradient color stops cannot be set through scripting, so the shading
+    // overlay keeps the default white-to-black ramp and sits above the
+    // theme-linked fill; the block's hue keeps coming from Node Fill, and
+    // Gradient Amount only drives the overlay's opacity. Callers must add
+    // the gradient directly after the path, before the fill.
+    function addNodeGradient(contents) {
+        var gradient = contents.addProperty("ADBE Vector Graphic - G-Fill");
+        gradient.name = "Node Gradient";
+        gradient.property("ADBE Vector Grad Start Pt").expression =
+            gradientPointExpression(false);
+        gradient.property("ADBE Vector Grad End Pt").expression =
+            gradientPointExpression(true);
+        var opacity = gradient.property("ADBE Vector Fill Opacity");
+        opacity.setValue(readGradientAmountSetting());
+        opacity.expression = themeSliderExpression("Gradient Amount");
+        return gradient;
+    }
+
+    function ensureNodeGradient(contents) {
+        var existing = findDirectChild(
+            contents,
+            "Node Gradient",
+            "ADBE Vector Graphic - G-Fill"
+        );
+        if (existing !== null) {
+            return existing;
+        }
+        // Upgrading a node generated before the gradient feature: the overlay
+        // must sit above the fill, but shape contents cannot be reordered in
+        // place (Property.moveTo trips AE's internal stream verification), so
+        // capture the paint stack, remove it, and rebuild it in order. Color
+        // expressions and stroke width survive; other manual tweaks to these
+        // two entries (dashes, opacity) do not.
+        var fill = findDirectChild(
+            contents,
+            "Node Fill",
+            "ADBE Vector Graphic - Fill"
+        );
+        var stroke = findDirectChild(
+            contents,
+            "Node Border",
+            "ADBE Vector Graphic - Stroke"
+        );
+        var fillState = null;
+        var strokeState = null;
+        if (fill !== null) {
+            var fillColor = fill.property("ADBE Vector Fill Color");
+            fillState = {
+                color: fillColor.value,
+                expression: fillColor.expression
+            };
+            fill.remove();
+        }
+        if (stroke !== null) {
+            var strokeColor = stroke.property("ADBE Vector Stroke Color");
+            strokeState = {
+                color: strokeColor.value,
+                expression: strokeColor.expression,
+                width: stroke.property("ADBE Vector Stroke Width").value,
+                join: stroke.property("ADBE Vector Stroke Line Join").value
+            };
+            stroke.remove();
+        }
+        var gradient = addNodeGradient(contents);
+        if (fillState !== null) {
+            var newFill = contents.addProperty("ADBE Vector Graphic - Fill");
+            newFill.name = "Node Fill";
+            var newFillColor = newFill.property("ADBE Vector Fill Color");
+            newFillColor.setValue(fillState.color);
+            if (fillState.expression !== "") {
+                newFillColor.expression = fillState.expression;
+            }
+        }
+        if (strokeState !== null) {
+            var newStroke = contents.addProperty(
+                "ADBE Vector Graphic - Stroke"
+            );
+            newStroke.name = "Node Border";
+            var newStrokeColor = newStroke.property(
+                "ADBE Vector Stroke Color"
+            );
+            newStrokeColor.setValue(strokeState.color);
+            if (strokeState.expression !== "") {
+                newStrokeColor.expression = strokeState.expression;
+            }
+            newStroke.property("ADBE Vector Stroke Width").setValue(
+                strokeState.width
+            );
+            newStroke.property("ADBE Vector Stroke Line Join").setValue(
+                strokeState.join
+            );
+        }
+        return gradient;
+    }
+
+    function gradientPointExpression(isEnd) {
+        return "var r = thisLayer.sourceRectAtTime(time, false);\n" +
+            "[r.left + r.width / 2, r.top" +
+            (isEnd ? " + r.height" : "") + "];";
     }
 
     function nodeDimensionsExpression(kind) {
@@ -1683,25 +1839,20 @@
         try {
             ui.stroke.text = displayNumber(commonNumber(values, "strokeWidth"));
             ui.head.text = displayNumber(commonNumber(values, "headSize"));
-            ui.startOffset.text = displayNumber(
-                commonNumber(values, "startOffset")
-            );
-            ui.endOffset.text = displayNumber(
-                commonNumber(values, "endOffset")
-            );
             ui.duration.text = displayNumber(commonNumber(values, "duration"));
             setDropdownValue(ui.type, commonText(values, "route"));
             setDropdownValue(ui.startSide, commonText(values, "startSide"));
             setDropdownValue(ui.endSide, commonText(values, "endSide"));
-            setDropdownValue(ui.arrowhead, commonText(values, "arrowhead"));
+            var arrowChoice = commonText(values, "arrowhead");
+            if (arrowChoice !== null) {
+                ui.arrowhead.value = arrowChoice === ARROWHEAD_ITEMS[0];
+            }
             var color = commonColor(values, "color");
             if (color === null) {
                 selectedColorIsMixed = true;
-                ui.colorValue.text = "<Mixed>";
             } else {
                 selectedColor = color;
                 selectedColorIsMixed = false;
-                ui.colorValue.text = rgbToHex(selectedColor);
             }
             setSwatchColor(ui.colorButton, selectedColor, selectedColorIsMixed);
         } finally {
@@ -1725,14 +1876,10 @@
                 setDropdownValue(ui.startSide, SIDE_ITEMS[0]);
             }
             if (ui.endSide.selection === null) {
-                setDropdownValue(ui.endSide, SIDE_ITEMS[0]);
-            }
-            if (ui.arrowhead.selection === null) {
-                setDropdownValue(ui.arrowhead, ARROWHEAD_ITEMS[0]);
+                setDropdownValue(ui.endSide, SIDE_ITEMS[4]);
             }
             if (selectedColorIsMixed) {
                 selectedColorIsMixed = false;
-                ui.colorValue.text = rgbToHex(selectedColor);
                 setSwatchColor(ui.colorButton, selectedColor, false);
             }
         } finally {
@@ -1761,8 +1908,6 @@
             ),
             strokeWidth: effectValue(connector, "Stroke Width").value,
             headSize: effectValue(connector, "Arrowhead Size").value,
-            startOffset: effectValue(connector, "Start Port Offset").value,
-            endOffset: effectValue(connector, "End Port Offset").value,
             color: effectValue(connector, "Connector Color").value,
             duration: trimEnd.numKeys >= 2
                 ? trimEnd.keyTime(trimEnd.numKeys) - trimEnd.keyTime(1)
@@ -1774,17 +1919,10 @@
         var strokeWidth = parsePositiveNumber(ui.stroke.text, "Stroke width");
         var headSize = parsePositiveNumber(ui.head.text, "Arrowhead size");
         var duration = parsePositiveNumber(ui.duration.text, "Duration");
-        var startOffset = parseOffsetNumber(
-            ui.startOffset.text,
-            "Start offset"
-        );
-        var endOffset = parseOffsetNumber(ui.endOffset.text, "End offset");
         if (
             strokeWidth === null ||
             headSize === null ||
-            duration === null ||
-            startOffset === null ||
-            endOffset === null
+            duration === null
         ) {
             return null;
         }
@@ -1792,6 +1930,8 @@
         // selection, not a real choice. Fall back to the same defaults the panel
         // builds with, so Connect always has usable values instead of blocking
         // with an alert.
+        // Ports build at each side's midpoint; offsets are tuned afterward on
+        // the wire's own Start/End Port Offset controls in Effect Controls.
         return {
             route: ui.type.selection ? ui.type.selection.text : ROUTE_ITEMS[1],
             startSide: ui.startSide.selection
@@ -1799,403 +1939,17 @@
                 : SIDE_ITEMS[0],
             endSide: ui.endSide.selection
                 ? ui.endSide.selection.text
-                : SIDE_ITEMS[0],
-            startOffset: startOffset,
-            endOffset: endOffset,
-            arrowhead: ui.arrowhead.selection
-                ? ui.arrowhead.selection.text
-                : ARROWHEAD_ITEMS[0],
+                : SIDE_ITEMS[4],
+            startOffset: 0,
+            endOffset: 0,
+            arrowhead: ui.arrowhead.value
+                ? ARROWHEAD_ITEMS[0]
+                : ARROWHEAD_ITEMS[1],
             strokeWidth: strokeWidth,
             headSize: headSize,
             duration: duration,
             color: selectedColor
         };
-    }
-
-    function importSlxModel() {
-        var comp = activeComp();
-        if (comp === null) {
-            alert("Open a composition before importing.", SCRIPT_NAME);
-            return;
-        }
-        var settings = readUiSettings();
-        if (settings === null) {
-            return;
-        }
-        var slxFile = File.openDialog("Choose a Simulink .slx model");
-        if (slxFile === null) {
-            return;
-        }
-        if (!/\.slx$/i.test(slxFile.name)) {
-            alert("Choose a .slx file.", SCRIPT_NAME);
-            return;
-        }
-
-        var model = null;
-        try {
-            model = readSlxModel(slxFile);
-        } catch (error) {
-            alert(
-                "The model could not be read.\n\n" + error.toString(),
-                SCRIPT_NAME
-            );
-            return;
-        }
-        if (model === null || model.blocks.length === 0) {
-            alert(
-                "No blocks with positions were found in the model's root " +
-                    "system.",
-                SCRIPT_NAME
-            );
-            return;
-        }
-        buildImportedDiagram(comp, model, settings);
-    }
-
-    function readSlxModel(slxFile) {
-        var tempFolder = new Folder(
-            Folder.temp.fsName + "/FlowDiagramSlx_" + new Date().getTime()
-        );
-        if (!tempFolder.create()) {
-            throw new Error("A temporary folder could not be created.");
-        }
-        unzipArchive(slxFile, tempFolder);
-
-        var candidates = [
-            "simulink/systems/system_root.xml",
-            "simulink/blockdiagram.xml"
-        ];
-        var i;
-        for (i = 0; i < candidates.length; i += 1) {
-            var xmlFile = new File(tempFolder.fsName + "/" + candidates[i]);
-            if (!xmlFile.exists) {
-                continue;
-            }
-            var model = parseSlxSystem(readTextFile(xmlFile));
-            if (model !== null && model.blocks.length > 0) {
-                return model;
-            }
-        }
-        throw new Error(
-            "No root system XML was found inside the archive."
-        );
-    }
-
-    function unzipArchive(archiveFile, destinationFolder) {
-        var command;
-        if ($.os.indexOf("Windows") !== -1) {
-            command = "powershell -NoProfile -Command \"Expand-Archive " +
-                "-LiteralPath '" + archiveFile.fsName + "' " +
-                "-DestinationPath '" + destinationFolder.fsName +
-                "' -Force\"";
-        } else {
-            command = "unzip -o '" +
-                archiveFile.fsName.replace(/'/g, "'\\''") + "' -d '" +
-                destinationFolder.fsName.replace(/'/g, "'\\''") + "'";
-        }
-        try {
-            system.callSystem(command);
-        } catch (error) {
-            throw new Error(
-                "The archive could not be unzipped. Enable Preferences > " +
-                    "Scripting & Expressions > Allow Scripts to Write " +
-                    "Files and Access Network, then try again."
-            );
-        }
-        var marker = new Folder(destinationFolder.fsName + "/simulink");
-        if (!marker.exists) {
-            throw new Error(
-                "The file does not look like a Simulink .slx archive."
-            );
-        }
-    }
-
-    function readTextFile(file) {
-        file.encoding = "UTF8";
-        if (!file.open("r")) {
-            throw new Error("The file could not be opened: " + file.fsName);
-        }
-        var text = file.read();
-        file.close();
-        return text;
-    }
-
-    function parseSlxSystem(xmlText) {
-        var cleaned = String(xmlText)
-            .replace(/^\uFEFF/, "")
-            .replace(/<\?xml[^>]*\?>/, "");
-        var root;
-        try {
-            root = new XML(cleaned);
-        } catch (xmlError) {
-            return null;
-        }
-
-        var systemElement;
-        if (String(root.localName()) === "System") {
-            systemElement = root;
-        } else {
-            var systems = root.descendants("System");
-            if (systems.length() === 0) {
-                return null;
-            }
-            systemElement = systems[0];
-        }
-
-        var blocks = [];
-        var blockBySid = {};
-        var blockElements = systemElement.elements("Block");
-        var i;
-        for (i = 0; i < blockElements.length(); i += 1) {
-            var blockElement = blockElements[i];
-            var positionText = blockParameter(blockElement, "Position");
-            if (positionText === null) {
-                continue;
-            }
-            var corners = parseNumberList(positionText);
-            if (corners.length < 4) {
-                continue;
-            }
-            var block = {
-                sid: String(blockElement.attribute("SID")),
-                name: String(blockElement.attribute("Name")),
-                blockType: String(blockElement.attribute("BlockType")),
-                center: [
-                    (corners[0] + corners[2]) / 2,
-                    (corners[1] + corners[3]) / 2
-                ]
-            };
-            blocks.push(block);
-            blockBySid[block.sid] = block;
-        }
-
-        var rawConnections = [];
-        var lineElements = systemElement.elements("Line");
-        for (i = 0; i < lineElements.length(); i += 1) {
-            collectLineConnections(lineElements[i], null, rawConnections);
-        }
-
-        var connections = [];
-        var inCounts = {};
-        var outCounts = {};
-        for (i = 0; i < rawConnections.length; i += 1) {
-            var connection = rawConnections[i];
-            if (
-                connection.src === null ||
-                connection.dst === null ||
-                blockBySid[connection.src.sid] === undefined ||
-                blockBySid[connection.dst.sid] === undefined
-            ) {
-                continue;
-            }
-            connections.push(connection);
-            if (
-                inCounts[connection.dst.sid] === undefined ||
-                connection.dst.port > inCounts[connection.dst.sid]
-            ) {
-                inCounts[connection.dst.sid] = connection.dst.port;
-            }
-            if (
-                outCounts[connection.src.sid] === undefined ||
-                connection.src.port > outCounts[connection.src.sid]
-            ) {
-                outCounts[connection.src.sid] = connection.src.port;
-            }
-        }
-
-        return {
-            blocks: blocks,
-            connections: connections,
-            inCounts: inCounts,
-            outCounts: outCounts
-        };
-    }
-
-    function collectLineConnections(lineElement, inheritedSrc, connections) {
-        var src = inheritedSrc;
-        var srcText = blockParameter(lineElement, "Src");
-        if (srcText !== null) {
-            src = parseLineEndpoint(srcText);
-        }
-        var dstText = blockParameter(lineElement, "Dst");
-        if (dstText !== null) {
-            connections.push({
-                src: src,
-                dst: parseLineEndpoint(dstText)
-            });
-        }
-        var branches = lineElement.elements("Branch");
-        var i;
-        for (i = 0; i < branches.length(); i += 1) {
-            collectLineConnections(branches[i], src, connections);
-        }
-    }
-
-    function parseLineEndpoint(text) {
-        var parts = String(text).split("#");
-        if (parts.length < 2) {
-            return null;
-        }
-        var portParts = parts[1].split(":");
-        var port = portParts.length > 1
-            ? parseInt(portParts[1], 10)
-            : 1;
-        if (isNaN(port)) {
-            port = 1;
-        }
-        return { sid: parts[0], port: port };
-    }
-
-    function blockParameter(element, name) {
-        var pElements = element.elements("P");
-        var i;
-        for (i = 0; i < pElements.length(); i += 1) {
-            if (String(pElements[i].attribute("Name")) === name) {
-                return String(pElements[i]);
-            }
-        }
-        return null;
-    }
-
-    function parseNumberList(text) {
-        var parts = String(text).replace(/[\[\]]/g, "").split(",");
-        var numbers = [];
-        var i;
-        for (i = 0; i < parts.length; i += 1) {
-            var value = parseFloat(parts[i]);
-            if (!isNaN(value)) {
-                numbers.push(value);
-            }
-        }
-        return numbers;
-    }
-
-    function buildImportedDiagram(comp, model, settings) {
-        app.beginUndoGroup("Import Simulink Model");
-        var created = 0;
-        var wires = 0;
-        try {
-            ensureThemeLayer(comp);
-            var bounds = modelBounds(model.blocks);
-            var spanX = Math.max(bounds.maxX - bounds.minX, 1);
-            var spanY = Math.max(bounds.maxY - bounds.minY, 1);
-            var scale = Math.min(
-                (comp.width - 240) / spanX,
-                (comp.height - 240) / spanY
-            );
-            scale = Math.max(1, Math.min(scale, 4));
-            var midX = (bounds.minX + bounds.maxX) / 2;
-            var midY = (bounds.minY + bounds.maxY) / 2;
-
-            var layersBySid = {};
-            var i;
-            for (i = 0; i < model.blocks.length; i += 1) {
-                var block = model.blocks[i];
-                var label = block.name !== ""
-                    ? block.name
-                    : block.blockType;
-                layersBySid[block.sid] = buildNode(
-                    comp,
-                    nodeKindForBlockType(block.blockType),
-                    false,
-                    label,
-                    [
-                        (block.center[0] - midX) * scale + comp.width / 2,
-                        (block.center[1] - midY) * scale + comp.height / 2
-                    ]
-                );
-                created += 1;
-            }
-
-            for (i = 0; i < model.connections.length; i += 1) {
-                var connection = model.connections[i];
-                createConnector(
-                    comp,
-                    layersBySid[connection.src.sid],
-                    layersBySid[connection.dst.sid],
-                    importedWireSettings(settings, model, connection)
-                );
-                wires += 1;
-            }
-            deselectAllLayers(comp);
-        } catch (error) {
-            alert(
-                "The import stopped after " + created + " blocks and " +
-                    wires + " signals.\n\n" + error.toString(),
-                SCRIPT_NAME
-            );
-            return;
-        } finally {
-            app.endUndoGroup();
-        }
-        alert(
-            "Imported " + created + " blocks and " + wires + " signals.",
-            SCRIPT_NAME
-        );
-    }
-
-    function importedWireSettings(settings, model, connection) {
-        return {
-            route: settings.route,
-            startSide: "Right",
-            endSide: "Left",
-            startOffset: portOffsetPercent(
-                connection.src.port,
-                model.outCounts[connection.src.sid]
-            ),
-            endOffset: portOffsetPercent(
-                connection.dst.port,
-                model.inCounts[connection.dst.sid]
-            ),
-            arrowhead: settings.arrowhead,
-            strokeWidth: settings.strokeWidth,
-            headSize: settings.headSize,
-            duration: settings.duration,
-            color: settings.color
-        };
-    }
-
-    function portOffsetPercent(port, portCount) {
-        var count = (portCount === undefined || portCount < 1)
-            ? 1
-            : portCount;
-        if (count === 1) {
-            return 0;
-        }
-        return ((port - (count + 1) / 2) / (count + 1)) * 100;
-    }
-
-    function nodeKindForBlockType(blockType) {
-        if (blockType === "Gain") {
-            return "triangle";
-        }
-        if (blockType === "Sum" || blockType === "Product") {
-            return "circle";
-        }
-        if (blockType === "Inport" || blockType === "Outport") {
-            return "rounded";
-        }
-        if (blockType === "Switch" || blockType === "ManualSwitch") {
-            return "diamond";
-        }
-        return "rectangle";
-    }
-
-    function modelBounds(blocks) {
-        var bounds = {
-            minX: blocks[0].center[0],
-            maxX: blocks[0].center[0],
-            minY: blocks[0].center[1],
-            maxY: blocks[0].center[1]
-        };
-        var i;
-        for (i = 1; i < blocks.length; i += 1) {
-            bounds.minX = Math.min(bounds.minX, blocks[i].center[0]);
-            bounds.maxX = Math.max(bounds.maxX, blocks[i].center[0]);
-            bounds.minY = Math.min(bounds.minY, blocks[i].center[1]);
-            bounds.maxY = Math.max(bounds.maxY, blocks[i].center[1]);
-        }
-        return bounds;
     }
 
     function startSelectionTracker() {
@@ -2334,6 +2088,11 @@
                     settings.connectorColor
                 );
             }
+            if (settings.gradient !== undefined) {
+                effectValue(theme, "Gradient Amount").setValue(
+                    settings.gradient
+                );
+            }
         } finally {
             app.endUndoGroup();
         }
@@ -2367,6 +2126,9 @@
             effectValue(theme, "Shadow Opacity").setValue(
                 preset.shadowOpacity
             );
+            effectValue(theme, "Gradient Amount").setValue(
+                preset.gradientAmount
+            );
         } catch (error) {
             alert(
                 "The theme preset could not be applied.\n\n" +
@@ -2387,12 +2149,13 @@
         saveColorSetting("connectorColor", preset.connectorColor);
         saveColorSetting("textColor", preset.textColor);
         saveSetting("shadowOpacity", preset.shadowOpacity);
+        saveSetting("gradientAmount", preset.gradientAmount);
         saveSetting("themePreset", preset.name);
 
         if (ui !== null) {
-            ui.nodeFillRow.setColor(preset.nodeFill);
-            ui.nodeStrokeRow.setColor(preset.nodeStroke);
-            ui.colorValue.text = rgbToHex(preset.connectorColor);
+            setSwatchColor(ui.nodeFillSwatch, preset.nodeFill, false);
+            setSwatchColor(ui.nodeStrokeSwatch, preset.nodeStroke, false);
+            ui.gradient.text = String(preset.gradientAmount);
             setSwatchColor(ui.colorButton, selectedColor, false);
         }
     }
@@ -2468,6 +2231,13 @@
                 stroke.property("ADBE Vector Stroke Color").expression =
                     themeColorExpression(strokeThemeControl);
             }
+            if (!isDotNode(node)) {
+                // Nodes generated before the gradient feature gain the
+                // overlay here, so Reset to Theme also upgrades old diagrams.
+                ensureNodeGradient(contents)
+                    .property("ADBE Vector Fill Opacity")
+                    .expression = themeSliderExpression("Gradient Amount");
+            }
         }
 
         var effects = node.property("ADBE Effect Parade");
@@ -2522,7 +2292,7 @@
                         " generated layers in \"" + comp.name + "\"?\n\n" +
                         "Baking freezes their expressions, so they stop " +
                         "following nodes and the theme. This cannot be " +
-                        "re-linked except for colors via Use Theme.",
+                        "re-linked except for colors via Reset to Theme.",
                     false,
                     SCRIPT_NAME
                 )
@@ -2714,6 +2484,12 @@
                     );
                     strokeColor.expression = "";
                     strokeColor.setValue(settings.stroke);
+                }
+                if (settings.gradient !== undefined && !isDotNode(nodes[i])) {
+                    var gradientOpacity = ensureNodeGradient(contents)
+                        .property("ADBE Vector Fill Opacity");
+                    gradientOpacity.expression = "";
+                    gradientOpacity.setValue(settings.gradient);
                 }
             }
         } finally {
@@ -3028,20 +2804,6 @@
         return value;
     }
 
-    function parseOffsetNumber(text, label, quiet) {
-        var value = parseFloat(text);
-        if (isNaN(value) || value < -50 || value > 50) {
-            if (!quiet) {
-                alert(
-                    label + " must be a number between -50 and 50.",
-                    SCRIPT_NAME
-                );
-            }
-            return null;
-        }
-        return value;
-    }
-
     function dropdownIndex(items, value) {
         var i;
         for (i = 0; i < items.length; i += 1) {
@@ -3130,6 +2892,17 @@
     function ensureThemeLayer(comp) {
         var existing = findThemeLayer(comp);
         if (existing !== null) {
+            // Theme layers created before the gradient feature lack the
+            // Gradient Amount control; add it so presets and node
+            // expressions keep working in older comps.
+            var existingEffects = existing.property("ADBE Effect Parade");
+            if (existingEffects.property("Gradient Amount") === null) {
+                addSliderControl(
+                    existingEffects,
+                    "Gradient Amount",
+                    readGradientAmountSetting()
+                );
+            }
             return existing;
         }
         var theme = comp.layers.addNull();
@@ -3152,6 +2925,11 @@
             effects,
             "Shadow Opacity",
             readShadowOpacitySetting()
+        );
+        addSliderControl(
+            effects,
+            "Gradient Amount",
+            readGradientAmountSetting()
         );
         return theme;
     }
@@ -3219,12 +2997,12 @@
         return Math.max(0, Math.min(100, value));
     }
 
-    function readOffsetSetting(key, fallback) {
-        var value = parseFloat(readSetting(key));
+    function readGradientAmountSetting() {
+        var value = parseFloat(readSetting("gradientAmount"));
         if (isNaN(value)) {
-            return fallback;
+            return 0;
         }
-        return Math.max(-50, Math.min(50, value));
+        return Math.max(0, Math.min(100, value));
     }
 
     function readColorSetting(key, fallback) {
