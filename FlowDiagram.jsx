@@ -1532,6 +1532,12 @@
             "if (route === 2) {",
             "  var ns = routeNormal(ss, a, b);",
             "  var ne = routeNormal(es, b, a);",
+            // Facing ports must share the available gap rather than overshoot
+            // each other when their nodes are closer than two clearance lengths.
+            "  var gapX = (p3[0] - p0[0]) * ns[0];",
+            "  var gapY = (p3[1] - p0[1]) * ns[1];",
+            "  if (ns[0] !== 0 && ns[0] === -ne[0] && gapX >= 0) clearance = Math.min(clearance, gapX / 2);",
+            "  if (ns[1] !== 0 && ns[1] === -ne[1] && gapY >= 0) clearance = Math.min(clearance, gapY / 2);",
             "  var s1 = add(p0, ns, clearance);",
             "  var e1 = add(p3, ne, clearance);",
             "  points = [p0, s1];",
@@ -1818,7 +1824,7 @@
             // Nothing to read from. Don't leave a control stuck on a blank
             // "<Mixed>" state from a previous selection -- restore concrete
             // defaults so the panel never lingers blank and Connect stays usable.
-            restoreBlankDropdownsToDefaults();
+            restoreBlankControlsToDefaults();
             return;
         }
 
@@ -1863,12 +1869,24 @@
         }
     }
 
-    function restoreBlankDropdownsToDefaults() {
+    function restoreBlankControlsToDefaults() {
         if (ui === null) {
             return;
         }
         isSyncingControls = true;
         try {
+            var fields = [ui.stroke, ui.head, ui.duration];
+            var keys = ["strokeWidth", "headSize", "duration"];
+            var fallbacks = [DEFAULT_STROKE_WIDTH, DEFAULT_HEAD_SIZE, DEFAULT_DURATION];
+            var i;
+            for (i = 0; i < fields.length; i += 1) {
+                var value = parseFloat(fields[i].text);
+                if (!isFinite(value) || value <= 0) {
+                    var restored = readNumberSetting(keys[i], fallbacks[i]);
+                    fields[i].text = String(isFinite(restored) && restored > 0
+                        ? restored : fallbacks[i]);
+                }
+            }
             if (ui.type.selection === null) {
                 setDropdownValue(ui.type, ROUTE_ITEMS[1]);
             }
@@ -2378,12 +2396,21 @@
         }
         var times = [];
         var values = [];
+        if (!isFinite(step) || step <= 0) {
+            throw new Error("Bake sampling requires a positive frame duration.");
+        }
+        var sampleIndex = 0;
         var t = startTime;
-        while (t <= endTime + step / 2) {
+        // Avoid accumulated rounding error and always include the exact final
+        // keyframe, including when draw-on timing falls between comp frames.
+        while (t < endTime - 0.0000001) {
             times.push(t);
             values.push(prop.valueAtTime(t, false));
-            t += step;
+            sampleIndex += 1;
+            t = startTime + sampleIndex * step;
         }
+        times.push(endTime);
+        values.push(prop.valueAtTime(endTime, false));
         prop.expression = "";
         prop.setValuesAtTimes(times, values);
     }

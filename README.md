@@ -187,6 +187,14 @@ Connector animation uses Easy Ease by default.
 Arrowheads default to On. The native Arrowhead menu remains editable in Effect
 Controls after creation.
 
+When a mixed connector selection is cleared, mixed numeric fields restore saved
+positive defaults so the next Connect operation has usable width, head size,
+and duration values.
+
+Facing orthogonal ports reduce their clearance in narrow gaps, avoiding a
+backtracking route when nodes are close together. Port offsets and the existing
+routing around destination nodes remain supported.
+
 Changing duration preserves the first Trim Paths keyframe and moves the ending
 keyframe. Reversing swaps start and end nodes and side overrides while
 preserving style and animation timing. Connectors that still use their
@@ -202,8 +210,9 @@ is not installed.
 nothing selected and after confirmation, on every generated layer in the
 comp. Node sizes, colors, text styling, and connector paths become static
 values; the arrowhead's ride along the draw-on animation is converted to
-keyframes, so the animation survives. Use it on finished or very large
-diagrams to recover preview performance. Baked layers no longer follow nodes
+keyframes, so the animation survives. Sampling includes the exact final draw-on
+keyframe, even when it falls between composition frames. Use it on finished or
+very large diagrams to recover preview performance. Baked layers no longer follow nodes
 or the theme; **Reset to Theme** can re-link colors afterward, but geometry
 stays frozen.
 
@@ -220,3 +229,11 @@ stays frozen.
 Built against the community-maintained
 [After Effects Scripting Guide](https://ae-scripting.docsforadobe.dev/) and
 [After Effects Expression Reference](https://ae-expressions.docsforadobe.dev/).
+
+## Regression Checks
+
+Run `node tools/test-regressions.cjs` for host-independent checks of narrow-gap
+routing, scaled nodes, port offsets, dots, destination detours, recovery after
+mixed selections, and exact Bake endpoint sampling. These checks execute the
+production functions with minimal host mocks; visual verification in After
+Effects is still required.
