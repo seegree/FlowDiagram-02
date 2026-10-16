@@ -69,8 +69,9 @@ The panel's Fill, Border, and connector Color swatches are theme-aware:
 - With generated nodes or connectors selected, picking a color overrides just
   those layers, detaching them from the theme.
 
-**Reset to Theme** removes those overrides on the selected nodes and wires
-so they follow the theme again. Each node carries a Node Shadow effect whose
+**Apply to all** sets the chosen preset on the entire generated diagram and removes
+individual appearance overrides, so all generated nodes and wires follow the
+theme again. Select objects afterward to customize them again. Each node carries a Node Shadow effect whose
 opacity follows the theme's Shadow Opacity slider (0 by default).
 
 ### Gradient Shading
@@ -87,7 +88,7 @@ The panel's **Gradient %** field follows the same selection rules as the
 color swatches: with nothing relevant selected it edits the theme's Gradient
 Amount slider (restyling every linked node), and with nodes selected it
 overrides just those nodes — which is how a diagram gets gradients on some
-blocks but not others. **Reset to Theme** re-links overridden nodes and also
+blocks but not others. Applying a preset replaces those overrides and also
 adds the gradient entry to nodes generated before this feature existed.
 
 After Effects does not expose gradient color stops to scripting, so the
@@ -97,7 +98,7 @@ manually editable per node via **Edit Gradient** in the timeline.
 ### Presets
 
 The Theme row offers three preset palettes. Selecting one in the dropdown
-changes nothing on its own; **Apply** commits it to the comp's FD Theme
+changes nothing on its own; **Apply to all** commits it to the comp's FD Theme
 layer. The dropdown always opens on Simulink Modern; it is a command
 input for Apply, not a readout of the comp's current theme:
 
@@ -108,8 +109,11 @@ input for Apply, not a readout of the comp's current theme:
   gradients.
 - **Stylized** — the default dark motion-graphics palette.
 
-Applying a preset updates every theme-linked layer live and becomes the
-default for new comps. Theme values are ordinary keyframeable controls, so a
+Applying a preset restyles every generated node and connector in the current
+composition, including objects with individual color, gradient, text-color,
+or shadow overrides. It works regardless of selection and becomes the default
+for new comps. The operation is one Undo step. Objects can be customized again
+using the panel after applying the preset. Theme values are ordinary keyframeable controls, so a
 restyle can also be animated by keyframing the FD Theme layer's effects.
 
 ## Connect Nodes
@@ -166,15 +170,16 @@ collision avoidance.
 ## Edit Connectors
 
 Select one or more generated connectors and change panel controls to update
-them. The refresh button loads shared values from the current selection.
+them. The panel automatically loads shared values when the selection changes or the
+panel is activated; no manual load button is needed.
 
 Available controls:
 
-- Path route
+- Straight / elbow route tiles (hover for names)
 - From and To side overrides, including Center
 - Stroke width (W)
 - Path color
-- Arrowhead size (Head) and the Arrow checkbox
+- Arrowhead size (triangle glyph beside its value) and the Arrow checkbox
 - Duration in seconds (Dur)
 
 Wires build with their ports at each side's midpoint. To attach several
@@ -213,8 +218,8 @@ values; the arrowhead's ride along the draw-on animation is converted to
 keyframes, so the animation survives. Sampling includes the exact final draw-on
 keyframe, even when it falls between composition frames. Use it on finished or
 very large diagrams to recover preview performance. Baked layers no longer follow nodes
-or the theme; **Reset to Theme** can re-link colors afterward, but geometry
-stays frozen.
+or the theme; applying a preset can re-link appearance afterward, including
+connector stroke and arrowhead colors, but geometry stays frozen.
 
 ## MVP Limits
 
@@ -234,6 +239,19 @@ Built against the community-maintained
 
 Run `node tools/test-regressions.cjs` for host-independent checks of narrow-gap
 routing, scaled nodes, port offsets, dots, destination detours, recovery after
-mixed selections, and exact Bake endpoint sampling. These checks execute the
+mixed selections, exact Bake endpoint sampling, and diagram-wide preset
+application over manual and panel appearance overrides. These checks execute the
 production functions with minimal host mocks; visual verification in After
 Effects is still required.
+
+## Panel Icon Assets
+
+`python3 tools/make_route_icons.py --sheet /tmp/fd-route-icons.png` regenerates
+the neutral route tiles (normal, hover, selected) and arrowhead-size glyph,
+splices them into the single-file panel, and writes a contact sheet. The
+generator uses only the Python standard library. Route tiles stay mutually
+exclusive; a mixed connector selection leaves neither selected. If PNG loading
+fails, native Straight/Elbow radios and a triangle character remain usable.
+
+The visual controls and swatches have fixed preferred/minimum/maximum sizes,
+so they remain left-packed in a wide dock. Color swatches are flat patches.

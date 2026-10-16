@@ -73,6 +73,7 @@
     var previousNodeIds = [];
     var nodeCreationCount = 0;
     var ui = null;
+    var lastPanelSelection = "";
 
     function buildUI(host) {
         var panel = (host instanceof Panel)
@@ -139,28 +140,21 @@
         );
         gradientInput.characters = 4;
         gradientInput.helpTip = gradientTip;
+        fixControlSize(gradientInput, 36, 24);
 
         addDividerRule(panel);
 
         var pathRow = panel.add("group");
         pathRow.orientation = "row";
         pathRow.alignChildren = ["left", "center"];
-        addRowLabel(pathRow, "Path route", "Connector route");
-        var typeInput = pathRow.add("dropdownlist", undefined, ROUTE_ITEMS);
-        typeInput.selection = settingDropdownIndex("route", ROUTE_ITEMS, 1);
-        typeInput.preferredSize.width = 96;
-        addRowLabel(pathRow, "Path color", "Connector color");
+        var typeInput = addRouteTiles(pathRow,
+            ROUTE_ITEMS[settingDropdownIndex("route", ROUTE_ITEMS, 1)]);
+        addRowLabel(pathRow, "Color", "Connector color");
         var colorButton = addSwatch(
             pathRow,
             "Choose connector color",
             selectedColor
         );
-        var refreshButton = pathRow.add("button", undefined, "\u21BB");
-        refreshButton.preferredSize = [22, 20];
-        refreshButton.minimumSize = [22, 20];
-        refreshButton.maximumSize = [22, 20];
-        refreshButton.helpTip = "Load settings from selected connectors";
-
         var portTip =
             "Ports attach at each side's midpoint; slide them afterward " +
             "with the wire's Start/End Port Offset controls in Effect " +
@@ -179,12 +173,12 @@
             SIDE_ITEMS,
             0
         );
-        startSideInput.preferredSize.width = 82;
+        fixControlSize(startSideInput, 82, 24);
         startSideInput.helpTip = portTip;
         addRowLabel(sideRow, "\u2192", portTip);
         var endSideInput = sideRow.add("dropdownlist", undefined, SIDE_ITEMS);
         endSideInput.selection = settingDropdownIndex("endSide", SIDE_ITEMS, 4);
-        endSideInput.preferredSize.width = 82;
+        fixControlSize(endSideInput, 82, 24);
         endSideInput.helpTip = "Side the wire enters the second node";
 
         var numberRow = panel.add("group");
@@ -197,14 +191,16 @@
             String(readNumberSetting("strokeWidth", DEFAULT_STROKE_WIDTH))
         );
         strokeInput.characters = 3;
+        fixControlSize(strokeInput, 36, 24);
         strokeInput.helpTip = "Stroke width, px";
-        addRowLabel(numberRow, "Head", "Arrowhead size, px");
+        addArrowheadSizeIcon(numberRow);
         var headInput = numberRow.add(
             "edittext",
             undefined,
             String(readNumberSetting("headSize", DEFAULT_HEAD_SIZE))
         );
         headInput.characters = 3;
+        fixControlSize(headInput, 36, 24);
         headInput.helpTip = "Arrowhead size, px";
         var arrowCheck = numberRow.add("checkbox", undefined, "Arrow");
         arrowCheck.value =
@@ -217,6 +213,7 @@
             String(readNumberSetting("duration", DEFAULT_DURATION))
         );
         durationInput.characters = 3;
+        fixControlSize(durationInput, 36, 24);
         durationInput.helpTip = "Draw-on duration in seconds";
 
         addDividerRule(panel);
@@ -235,36 +232,27 @@
         // preset made it pose as "the current theme" while the color and
         // gradient fields (persisted independently) drifted away from it.
         presetDropdown.selection = 1;
-        presetDropdown.preferredSize.width = 118;
+        fixControlSize(presetDropdown, 124, 26);
         presetDropdown.helpTip =
-            "Theme preset; selecting alone changes nothing, Apply commits it";
-        var applyPresetButton = themeRow.add("button", undefined, "Apply");
+            "Theme preset; selecting alone changes nothing, Apply to all restyles the diagram";
+        var applyPresetButton = themeRow.add("button", undefined, "Apply to all");
         applyPresetButton.helpTip =
-            "Apply the preset palette to this comp's FD Theme layer, " +
-            "restyling every theme-linked node and wire";
-        var resetThemeButton = themeRow.add(
-            "button",
-            undefined,
-            "Reset to Theme"
-        );
-        resetThemeButton.helpTip =
-            "Remove color overrides on the selected nodes and wires so " +
-            "they follow the theme again";
-
+            "Apply this style to every generated node and wire in the comp, " +
+            "replacing individual color and shading overrides";
         var actionRow = panel.add("group");
         actionRow.orientation = "row";
         actionRow.alignment = ["fill", "top"];
-        actionRow.alignChildren = ["fill", "center"];
+        actionRow.alignChildren = ["left", "center"];
         var connectButton = actionRow.add("button", undefined, "Connect");
-        connectButton.preferredSize = [110, 26];
+        fixControlSize(connectButton, 110, 26);
         connectButton.helpTip =
             "Connect selected nodes; Option/Alt-click connects every unique pair";
         styleAccentButton(connectButton);
         var reverseButton = actionRow.add("button", undefined, "Reverse");
-        reverseButton.preferredSize.height = 26;
+        fixControlSize(reverseButton, 68, 26);
         reverseButton.helpTip = "Reverse selected connector directions";
         var bakeButton = actionRow.add("button", undefined, "Bake");
-        bakeButton.preferredSize.height = 26;
+        fixControlSize(bakeButton, 52, 26);
         bakeButton.helpTip =
             "Freeze expressions on selected generated layers " +
             "(all generated layers if none are selected)";
@@ -386,25 +374,122 @@
         };
         connectButton.onClick = createConnectorFromSelection;
         reverseButton.onClick = reverseSelectedConnectors;
-        resetThemeButton.onClick = relinkSelectionToTheme;
         bakeButton.onClick = bakeGeneratedLayers;
-        refreshButton.onClick = syncControlsFromSelection;
         panel.onActivate = syncControlsFromSelection;
         // The capture-phase "focus" listener was removed: it re-ran the refresh
         // far too aggressively -- including at moments AE has a modal open (e.g.
         // New Composition), which AE forbids ("Cannot run a script while a modal
         // dialog is waiting"), wedging the panel and blanking its custom-drawn
-        // controls. onActivate plus the manual refresh (R) button cover the same
-        // need without firing during those modal moments.
+        // controls. onActivate and selection polling load settings without
+        // entering that fragile modal focus path.
 
         panel.onResizing = panel.onResize = function () {
-            this.layout.resize();
+            try { this.layout.resize(); } catch (resizeError) {}
         };
         panel.onClose = stopSelectionTracker;
 
         panel.layout.layout(true);
         startSelectionTracker();
         return panel;
+    }
+
+    function fixControlSize(control, width, height) {
+        control.preferredSize = [width, height];
+        control.minimumSize = [width, height];
+        control.maximumSize = [width, height];
+    }
+
+    /*__ROUTE_ICON_DATA_BEGIN__*/
+    var ROUTE_ICON_B64 = {
+        "Straight_normal": "iVBORw0KGgoAAAANSUhEUgAAACoAAAAaCAYAAADBuc72AAABGUlEQVR42uXYoQ6DMBSF4T4NILFISHDVWCwajcUyi8Zi0bzSHqHb36RLQ8aY2NZLtqSZ2JJ9OfSeDpS6v+I4vuR5fi3L0khamLAph8yyzCRJYqIoErUwYbNY1BKRPhajImKpSLcwfhWqtT5caZqGhYJY1/VwtW0rM9Gu6x7IZVlkQP3F9A7DYIHTNFn0OI6yoE3T2PS2CYqBkhrpkSJpkqr/eXAok+z24jzPpqqqp98LCq3r2l5ikGBf1U8QKJeVHwbIe1EUsgqfxEjF1Q2DI+5kYljYgyD7vn/rlPkpFJDrRKCAxZ31e50oBspwuE5kWLadGBzqdyIp7nVicKjbi0edGBzKoHyyE0X+cf5P6Glu7k5zu3yWBxA3pym0/AtyCC4AAAAASUVORK5CYII=",
+        "Orthogonal_normal": "iVBORw0KGgoAAAANSUhEUgAAACoAAAAaCAYAAADBuc72AAAA80lEQVR42u3YoQ6DMBAG4D4NIGuRJalD1/IOaGwts2gsFs0r7RFu+5t0mYIB4yihJCcIAb60vXKHEO8jTdOHUuqptaaQAibYhEfmeU5ZllGSJEEFTLA5LNRHI5umobquSUq5CQujwBAfPTLWWpqmiYZhoKqqVt8PIwsUUZYldV33AeP8NKgxxk3xXPR977AIwIui4Id6wJoA/hTo3IuRwX69juP483plgyLbkfkeuHYHYIMieXANo7lli2KDIskw7Vufy75GIzRCIzRC7wht2/bvRcYhUNSNS6Xbd+z5AgVRON8HytHc7e1EXXN3mXb5Kj8gXhPVzLr7az+RAAAAAElFTkSuQmCC",
+        "Straight_hover": "iVBORw0KGgoAAAANSUhEUgAAACoAAAAaCAYAAADBuc72AAABG0lEQVR42uXYoQ6DMBSF4T4WBoPGo7Hg0UiCmUHj0Wg8Gs077BE6/iZ3acg2Jrb1ki1pJrZkXw69pwNjtleappe6rq9N01hNCxM2I8iiKGwcxzaKIlULEzaHRa0R6WMxGiLWipSF8avQPM8PV5IkYaEg1nU9XG3b6ky067o7clkWHVB/bZNrh2FwwGmaHHocR13QbWpdevsE1UBJjfRIkTRJ1f88OJRJlr04z7Mty/Lh94JCq6pylxgk2Ff1EwTKZeWHAfKeZZmuwicxUpG6YXDUnUwMC3sQZN/3b50yP4UCkk4ECljdWf+sE9VAGQ7pRIZl34nBoX4nkuKzTgwOlb141InBoQzKJztR5R/n/4Se5ubuNLfLZ3kAcQOwcOscTYxwxAAAAABJRU5ErkJggg==",
+        "Orthogonal_hover": "iVBORw0KGgoAAAANSUhEUgAAACoAAAAaCAYAAADBuc72AAAA9ElEQVR42u3YoQ6EMAwG4D3WzAwaj55lHj1JMGfQeDQaj57mHe4RevxLIKfggKNAGEkFIcCXbR0tQgxHHMcva+07z3O6UsAEmxiRaZqSUoqklJcKmGDzWKiPRpZlSUVRUBRFm7AwCgzx0SNTVRX1fU9d11GWZavvh5EFitBaU9M0Exjnp0GNMX6K56JtW49FAJ4kCT90BKwJ4E+Bzr14yN5pvTrnfl6vbFBkOzJ/BK7dAdigSB5cw2hu2aLYoEgyTPvW57Kv0QAN0AAN0CdC67r+e5FxCBR141Lp9h17vkCXKJyfA+Vo7vZ2or65u027fJcfEB/YCQS98wW80AAAAABJRU5ErkJggg==",
+        "Straight_selected": "iVBORw0KGgoAAAANSUhEUgAAACoAAAAaCAYAAADBuc72AAABG0lEQVR42uXYIQ+CQBjG8ft8REYmkwhkMlUSgU6mQoZKJpMJfoTT/23nbkzEoN7LdHtn0M3fHu6eE5S6v9I0vXRddx3HUUsaTNiURVZVpcMw1EEQiBpM2AwWtUSki8WoiFgq0g7Gr0KzLDucKIr8QkGs63o4dV3LTLRpmgdyWRYZUHfiONZ93xvgNE0GPQyDLGhZlia9bYJioKRGeqRImqTqfu4dyk62a3GeZ53n+dPveYUWRWEuMUiwr+rHC5TLyg8D5D1JElmFT2KkYuuGjSPuZGKzsAZBtm371inzUygg24lAAYs76/c6UQyUzWE7kc2y7UTvULcTSXGvE71D7Vo86kTvUDbKJztR5B/n/4Se5ubuNLfLZ3kAcQOncAw2LQJVfAAAAABJRU5ErkJggg==",
+        "Orthogonal_selected": "iVBORw0KGgoAAAANSUhEUgAAACoAAAAaCAYAAADBuc72AAAA9ElEQVR42u3YoQ6DMBAG4D4fkqDRVQh0NXYOgUdjW00tGo1G7BFu+5uUTLEB44BQkhOEAF/aXrlDiPeRZdlDa/201tKZAibYhEeWZUlxHFMURacKmGBzWKj3RtZ1TVVVUZIkq7AwCgzx3iPTNA2N40h931NRFIvvh5EFisjznNq2ncA4PwyqlHJTPBdd1zksAnApJT/UA5YE8IdA516cpum0Xodh+Hm9skGR7ch8D1y6A7BBkTy4htFcs0WxQZFkmPa1z2VfowEaoAEaoHeEGmP+XmTsAkXd+K10+4wtX6BTFM73gXI0d1s7UdfcXaZdvsoPiBczEyU10pfovgAAAABJRU5ErkJggg=="
+    };
+    var HEAD_SIZE_ICON_B64 = "iVBORw0KGgoAAAANSUhEUgAAAA4AAAAOCAYAAAAfSC3RAAAAX0lEQVR42mM4fPgwAzkYmZMAxA3kaNwPxP+B+D7UEJI0ngfifqgBIL4DsRr3Q9kKQLweasB6KJ8ojTDsgOQFkEsEiNWIHHAgv7+H+Z9mGkl2KsmBQ3Z0kJUAyE5yJGEAqgDoaBp0WKQAAAAASUVORK5CYII=";
+    /*__ROUTE_ICON_DATA_END__*/
+
+    function panelIconImage(data, filename) {
+        if (!data) return null;
+        var binary = base64ToBinary(data);
+        try { return ScriptUI.newImage(binary); } catch (binaryError) {}
+        try {
+            var file = new File(Folder.temp.fsName + "/fd_" + filename + ".png");
+            file.encoding = "BINARY";
+            if (!file.open("w")) return null;
+            try { file.write(binary); } finally { file.close(); }
+            return ScriptUI.newImage(file);
+        } catch (fileError) { return null; }
+    }
+
+    function addRouteTiles(parent, initialValue) {
+        var controller = { selection: null, routeButtons: [], onChange: null };
+        var group = parent.add("group");
+        group.orientation = "row";
+        group.alignChildren = ["left", "center"];
+        group.spacing = 4;
+        var i;
+        for (i = 0; i < ROUTE_ITEMS.length; i += 1) {
+            addRouteTile(group, controller, ROUTE_ITEMS[i]);
+        }
+        setRouteTileValue(controller, initialValue);
+        return controller;
+    }
+
+    function addRouteTile(parent, controller, route) {
+        var images = {};
+        var states = ["normal", "hover", "selected"];
+        var i;
+        for (i = 0; i < states.length; i += 1) {
+            var key = route + "_" + states[i];
+            images[states[i]] = panelIconImage(ROUTE_ICON_B64[key], key);
+        }
+        var button;
+        if (images.normal && images.selected) {
+            button = parent.add("iconbutton", undefined, images.normal,
+                { style: "toolbutton", toggle: true });
+            button.onDraw = function (state) {
+                try {
+                    this.graphics.drawImage(this.value ? images.selected
+                        : (state && state.mouseOver && images.hover ? images.hover : images.normal), 0, 0);
+                } catch (drawError) {}
+            };
+            fixControlSize(button, 42, 26);
+        } else {
+            // A readable native radio remains usable when icon loading fails.
+            button = parent.add("radiobutton", undefined, route === "Straight" ? "Straight" : "Elbow");
+        }
+        button.helpTip = route === "Straight" ? "Straight connector" : "Elbow connector";
+        button.routeValue = route;
+        controller.routeButtons.push(button);
+        button.onClick = function () {
+            setRouteTileValue(controller, route);
+            if (controller.onChange !== null) controller.onChange();
+        };
+    }
+
+    function setRouteTileValue(controller, value) {
+        controller.selection = null;
+        var i;
+        for (i = 0; i < controller.routeButtons.length; i += 1) {
+            var button = controller.routeButtons[i];
+            button.value = button.routeValue === value;
+            if (button.value) controller.selection = { text: value, index: i };
+            // Programmatic radio changes need an explicit ScriptUI repaint.
+            button.visible = false;
+            button.visible = true;
+        }
+    }
+
+    function addArrowheadSizeIcon(parent) {
+        var image = panelIconImage(HEAD_SIZE_ICON_B64, "head_size");
+        var icon = image ? parent.add("image", undefined, image)
+            : parent.add("statictext", undefined, "\u25B7");
+        fixControlSize(icon, 14, 14);
+        icon.helpTip = "Arrowhead size, pixels";
+        return icon;
     }
 
     function addRowLabel(parent, text, helpTip) {
@@ -415,7 +500,7 @@
 
     function addSwatch(parent, helpTip, initialColor) {
         var swatch = parent.add("group");
-        swatch.preferredSize = [34, 18];
+        fixControlSize(swatch, 32, 24);
         swatch.helpTip = helpTip;
         setSwatchColor(swatch, initialColor, false);
         return swatch;
@@ -990,7 +1075,6 @@
                 color: fillColor.value,
                 expression: fillColor.expression
             };
-            fill.remove();
         }
         if (stroke !== null) {
             var strokeColor = stroke.property("ADBE Vector Stroke Color");
@@ -1000,9 +1084,15 @@
                 width: stroke.property("ADBE Vector Stroke Width").value,
                 join: stroke.property("ADBE Vector Stroke Line Join").value
             };
-            stroke.remove();
         }
-        var gradient = addNodeGradient(contents);
+        if (fill !== null) {
+            fill.remove();
+        }
+        if (strokeState !== null) {
+            // Reacquire after removing the fill; the old stroke handle is stale.
+            findDirectChild(contents, "Node Border", "ADBE Vector Graphic - Stroke").remove();
+        }
+        addNodeGradient(contents);
         if (fillState !== null) {
             var newFill = contents.addProperty("ADBE Vector Graphic - Fill");
             newFill.name = "Node Fill";
@@ -1031,7 +1121,8 @@
                 strokeState.join
             );
         }
-        return gradient;
+        // Later addProperty calls invalidate the original gradient handle too.
+        return findDirectChild(contents, "Node Gradient", "ADBE Vector Graphic - G-Fill");
     }
 
     function gradientPointExpression(isEnd) {
@@ -1970,6 +2061,18 @@
         };
     }
 
+    function syncPanelSelection(comp) {
+        // Replaces the manual reload button. Only refresh on a changed selection,
+        // and keep this passive polling safe during AE modal/restore operations.
+        try {
+            var signature = String(comp.id) + ":" + nodeIds(comp.selectedLayers).join(",");
+            if (signature !== lastPanelSelection) {
+                syncControlsFromSelection();
+                lastPanelSelection = signature;
+            }
+        } catch (selectionError) {}
+    }
+
     function startSelectionTracker() {
         stopSelectionTracker();
         $.global.__flowDiagramTrackSelection = trackSelection;
@@ -1999,8 +2102,10 @@
         if (comp === null) {
             trackedNodeOrder = [];
             previousNodeIds = [];
+            lastPanelSelection = "";
             return;
         }
+        syncPanelSelection(comp);
         if (!trackedNodesAlive()) {
             trackedNodeOrder = [];
             previousNodeIds = [];
@@ -2132,6 +2237,7 @@
             return;
         }
 
+        var failures = [];
         app.beginUndoGroup("Apply Flow Diagram Theme Preset");
         try {
             var theme = ensureThemeLayer(comp);
@@ -2147,6 +2253,7 @@
             effectValue(theme, "Gradient Amount").setValue(
                 preset.gradientAmount
             );
+            failures = linkCompToTheme(comp);
         } catch (error) {
             alert(
                 "The theme preset could not be applied.\n\n" +
@@ -2175,45 +2282,30 @@
             ui.gradient.text = String(preset.gradientAmount);
             setSwatchColor(ui.colorButton, selectedColor, false);
         }
+        if (failures.length > 0) {
+            alert("The style was applied, but some generated layers could not " +
+                "be updated:\n\n" + failures.join("\n"), SCRIPT_NAME);
+        }
     }
 
-    function relinkSelectionToTheme() {
-        var comp = activeComp();
-        if (comp === null) {
-            alert(
-                "Open a composition and select generated layers.",
-                SCRIPT_NAME
-            );
-            return;
-        }
-        var nodes = selectedGeneratedNodes(comp);
-        var connectors = selectedConnectors(comp);
-        if (nodes.length === 0 && connectors.length === 0) {
-            alert(
-                "Select generated nodes or connectors to re-link.",
-                SCRIPT_NAME
-            );
-            return;
-        }
-
-        app.beginUndoGroup("Re-link Flow Diagram Theme");
-        try {
-            ensureThemeLayer(comp);
-            var i;
-            for (i = 0; i < nodes.length; i += 1) {
-                linkNodeToTheme(nodes[i]);
+    function linkCompToTheme(comp) {
+        // Apply always restyles the complete generated diagram, regardless of
+        // selection. Re-link appearance only; baked geometry stays frozen.
+        var failures = [];
+        var i;
+        for (i = 1; i <= comp.numLayers; i += 1) {
+            var layer = comp.layer(i);
+            try {
+                if (isNodeLayer(layer)) {
+                    linkNodeToTheme(layer);
+                } else if (layer.comment === CONNECTOR_TAG) {
+                    linkConnectorToTheme(layer);
+                }
+            } catch (error) {
+                failures.push(layer.name + ": " + error.toString());
             }
-            for (i = 0; i < connectors.length; i += 1) {
-                linkConnectorToTheme(connectors[i]);
-            }
-        } catch (error) {
-            alert(
-                "The selection could not be re-linked.\n\n" + error.toString(),
-                SCRIPT_NAME
-            );
-        } finally {
-            app.endUndoGroup();
         }
+        return failures;
     }
 
     function linkNodeToTheme(node) {
@@ -2250,7 +2342,7 @@
             }
             if (!isDotNode(node)) {
                 // Nodes generated before the gradient feature gain the
-                // overlay here, so Reset to Theme also upgrades old diagrams.
+                // overlay here when a preset is applied.
                 ensureNodeGradient(contents)
                     .property("ADBE Vector Fill Opacity")
                     .expression = themeSliderExpression("Gradient Amount");
@@ -2275,6 +2367,28 @@
     function linkConnectorToTheme(connector) {
         effectValue(connector, "Connector Color").expression =
             themeColorExpression("Connector Color");
+        // Bake also freezes paint expressions, so restoring only the color
+        // control would leave the visible stroke and arrowhead unchanged.
+        var group = findDirectChild(
+            connector.property("ADBE Root Vectors Group"),
+            "Connector Geometry", "ADBE Vector Group"
+        );
+        if (group === null) return;
+        var contents = group.property("ADBE Vectors Group");
+        var stroke = findDirectChild(contents, "Connector Stroke", "ADBE Vector Graphic - Stroke");
+        if (stroke !== null) {
+            stroke.property("ADBE Vector Stroke Color").expression =
+                "effect(\"Connector Color\")(\"Color\");";
+        }
+        var head = findDirectChild(contents, "Arrowhead", "ADBE Vector Group");
+        if (head !== null) {
+            var fill = findDirectChild(head.property("ADBE Vectors Group"),
+                "Arrowhead Fill", "ADBE Vector Graphic - Fill");
+            if (fill !== null) {
+                fill.property("ADBE Vector Fill Color").expression =
+                    "effect(\"Connector Color\")(\"Color\");";
+            }
+        }
     }
 
     function bakeGeneratedLayers() {
@@ -2309,7 +2423,7 @@
                         " generated layers in \"" + comp.name + "\"?\n\n" +
                         "Baking freezes their expressions, so they stop " +
                         "following nodes and the theme. This cannot be " +
-                        "re-linked except for colors via Reset to Theme.",
+                        "re-linked except for appearance by applying a preset.",
                     false,
                     SCRIPT_NAME
                 )
@@ -2846,6 +2960,10 @@
     }
 
     function setDropdownValue(dropdown, value) {
+        if (dropdown.routeButtons !== undefined) {
+            setRouteTileValue(dropdown, value);
+            return;
+        }
         dropdown.selection = null;
         if (value === null) {
             return;
